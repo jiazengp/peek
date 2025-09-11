@@ -5,6 +5,10 @@ import net.minecraft.particle.ParticleEffect;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 
+#if MC_VER <= 1212
+import org.joml.Vector3f;
+#endif
+
 /**
  * Compatibility layer for particle spawning across different Minecraft versions.
  * Handles API differences between 1.21.2 and newer versions.
