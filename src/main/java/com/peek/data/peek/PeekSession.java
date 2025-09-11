@@ -1,9 +1,6 @@
 package com.peek.data.peek;
 
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
 
 import java.time.Instant;
 import java.util.UUID;

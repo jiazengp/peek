@@ -99,7 +99,7 @@ jobs:
         run: |
           # Create changelog that links to the repository CHANGELOG.md
           cat > version_changelog.md << EOF
-          ## Showcase ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}
+          ## Peek ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}
           
           Compatible Minecraft versions: ${{ steps.version-props.outputs.compatible-versions }}
           
@@ -135,7 +135,7 @@ jobs:
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           
           # Project metadata - version specific
-          name: "Showcase ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}"
+          name: "Peek ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}"
           version: "${{ github.ref_name }}+${{ matrix.mc_version }}"
           changelog-file: version_changelog.md
           

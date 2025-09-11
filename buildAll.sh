@@ -1,9 +1,9 @@
 #!/bin/bash
-# Multi-version build script for Showcase mod
+# Multi-version build script for Peek mod
 # Inspired by Fuji's buildAll script
 
 
-echo "Starting multi-version build for Showcase mod..."
+echo "Starting multi-version build for Peek mod..."
 echo "Build started at: $(date)"
 
 # Create build output directory

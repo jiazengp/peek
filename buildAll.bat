@@ -1,9 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
-REM Multi-version build script for Showcase mod
+REM Multi-version build script for Peek mod
 REM Inspired by Fuji's buildAll script
 
-echo Starting multi-version build for Showcase mod...
+echo Starting multi-version build for Peek mod...
 echo Build started at: %DATE% %TIME%
 
 REM Create build output directory
@@ -68,7 +68,7 @@ echo Verifying build artifacts...
 set missing_jars=0
 for %%f in (version_properties\*.properties) do (
     set "version=%%~nf"
-    if not exist "build\buildAllJars\showcase-*+!version!.jar" (
+    if not exist "build\buildAllJars\peek-*+!version!.jar" (
         echo WARNING: Missing JAR for Minecraft !version!
         set /a missing_jars+=1
     )
@@ -110,7 +110,7 @@ if %ERRORLEVEL% NEQ 0 (
 
 REM Verify and copy JAR files
 set jar_found=0
-for %%j in (build\libs\showcase-*+%mcver%.jar) do (
+for %%j in (build\libs\peek-*+%mcver%.jar) do (
     if exist "%%j" (
         set jar_found=1
         copy "%%j" "build\buildAllJars\%%~nxj" >nul

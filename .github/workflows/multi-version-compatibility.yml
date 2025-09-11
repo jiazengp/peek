@@ -92,13 +92,13 @@ jobs:
           echo "Verifying build artifacts for Minecraft ${{ matrix.minecraft-version }}..."
           
           # Check JAR file exists
-          if ! ls build/libs/showcase-*+${{ matrix.minecraft-version }}.jar >/dev/null 2>&1; then
+          if ! ls build/libs/peek-*+${{ matrix.minecraft-version }}.jar >/dev/null 2>&1; then
             echo "ERROR: JAR file not found for Minecraft ${{ matrix.minecraft-version }}"
             exit 1
           fi
           
           # Check JAR file size (should be reasonable)
-          jar_file=$(ls build/libs/showcase-*+${{ matrix.minecraft-version }}.jar)
+          jar_file=$(ls build/libs/peek-*+${{ matrix.minecraft-version }}.jar)
           jar_size=$(stat -c%s "$jar_file")
           
           if [ "$jar_size" -lt 10000 ]; then
@@ -118,7 +118,7 @@ jobs:
         run: |
           echo "Verifying mod metadata for Minecraft ${{ matrix.minecraft-version }}..."
           
-          jar_file=$(ls build/libs/showcase-*+${{ matrix.minecraft-version }}.jar)
+          jar_file=$(ls build/libs/peek-*+${{ matrix.minecraft-version }}.jar)
           
           # Extract and check fabric.mod.json
           unzip -q "$jar_file" fabric.mod.json -d temp_extract/
@@ -144,7 +144,7 @@ jobs:
         with:
           name: compatibility-test-${{ matrix.minecraft-version }}
           path: |
-            build/libs/showcase-*+${{ matrix.minecraft-version }}.jar
+            build/libs/peek-*+${{ matrix.minecraft-version }}.jar
             build.properties
           retention-days: 7
 
