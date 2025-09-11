@@ -11,5 +11,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: funnyboy-roks/modrinth-auto-desc@v1.5
         with:
-          auth-token: ${{ secrets.MODRINTH_AUTH_TOKEN }}
+          auth-token: ${{ secrets.MODRINTH_TOKEN }}
           slug: '1yiACNNS'
