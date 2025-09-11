@@ -1,9 +1,19 @@
 @echo off
 setlocal enabledelayedexpansion
-REM Multi-version build script for Peek mod
+REM Multi-version build script for Minecraft mods
 REM Inspired by Fuji's buildAll script
 
-echo Starting multi-version build for Peek mod...
+REM Get mod info from gradle.properties and fabric.mod.json
+for /f "tokens=2 delims==" %%a in ('findstr "^archives_base_name=" gradle.properties') do set MOD_ARCHIVE_NAME=%%a
+for /f "tokens=2 delims=:" %%a in ('findstr "name" src\main\resources\fabric.mod.json') do (
+    set "temp_name=%%a"
+    set "temp_name=!temp_name: =!"
+    set "temp_name=!temp_name:"=!"
+    set "temp_name=!temp_name:,=!"
+    if not "!temp_name!"=="" set MOD_NAME=!temp_name!
+)
+
+echo Starting multi-version build for %MOD_NAME% mod...
 echo Build started at: %DATE% %TIME%
 
 REM Create build output directory
@@ -68,7 +78,7 @@ echo Verifying build artifacts...
 set missing_jars=0
 for %%f in (version_properties\*.properties) do (
     set "version=%%~nf"
-    if not exist "build\buildAllJars\peek-*+!version!.jar" (
+    if not exist "build\buildAllJars\%MOD_ARCHIVE_NAME%-*+!version!.jar" (
         echo WARNING: Missing JAR for Minecraft !version!
         set /a missing_jars+=1
     )
@@ -110,7 +120,7 @@ if %ERRORLEVEL% NEQ 0 (
 
 REM Verify and copy JAR files
 set jar_found=0
-for %%j in (build\libs\peek-*+%mcver%.jar) do (
+for %%j in (build\libs\%MOD_ARCHIVE_NAME%-*+%mcver%.jar) do (
     if exist "%%j" (
         set jar_found=1
         copy "%%j" "build\buildAllJars\%%~nxj" >nul

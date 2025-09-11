@@ -51,6 +51,19 @@ jobs:
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
 
+      - name: get mod info
+        id: mod-info
+        run: |
+          # Extract mod info from gradle.properties and fabric.mod.json
+          MOD_ARCHIVE_NAME=$(grep '^archives_base_name=' gradle.properties | cut -d'=' -f2)
+          MOD_NAME=$(grep '"name":' src/main/resources/fabric.mod.json | sed 's/.*"name": *"\([^"]*\)".*/\1/')
+          
+          echo "mod-archive-name=$MOD_ARCHIVE_NAME" >> $GITHUB_OUTPUT
+          echo "mod-name=$MOD_NAME" >> $GITHUB_OUTPUT
+          
+          echo "Detected mod archive name: $MOD_ARCHIVE_NAME"
+          echo "Detected mod name: $MOD_NAME"
+
       - name: get version properties
         id: version-props
         run: |
@@ -99,7 +112,7 @@ jobs:
         run: |
           # Create changelog that links to the repository CHANGELOG.md
           cat > version_changelog.md << EOF
-          ## Peek ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}
+          ## ${{ steps.mod-info.outputs.mod-name }} ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}
           
           Compatible Minecraft versions: ${{ steps.version-props.outputs.compatible-versions }}
           
@@ -135,7 +148,7 @@ jobs:
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           
           # Project metadata - version specific
-          name: "Peek ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}"
+          name: "${{ steps.mod-info.outputs.mod-name }} ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}"
           version: "${{ github.ref_name }}+${{ matrix.mc_version }}"
           changelog-file: version_changelog.md
           

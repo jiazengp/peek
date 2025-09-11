@@ -1,9 +1,12 @@
 #!/bin/bash
-# Multi-version build script for Peek mod
+# Multi-version build script for Minecraft mods
 # Inspired by Fuji's buildAll script
 
+# Get mod info from gradle.properties and fabric.mod.json
+MOD_ARCHIVE_NAME=$(grep '^archives_base_name=' gradle.properties | cut -d'=' -f2)
+MOD_NAME=$(grep '"name":' src/main/resources/fabric.mod.json | sed 's/.*"name": *"\([^"]*\)".*/\1/')
 
-echo "Starting multi-version build for Peek mod..."
+echo "Starting multi-version build for $MOD_NAME mod..."
 echo "Build started at: $(date)"
 
 # Create build output directory
@@ -54,7 +57,7 @@ build_version() {
     
     # Verify build artifacts exist
     local jar_found=false
-    for jar in build/libs/peek-*+$mcver.jar; do
+    for jar in build/libs/$MOD_ARCHIVE_NAME-*+$mcver.jar; do
         if [ -f "$jar" ]; then
             jar_found=true
             local jar_size=$(stat -f%z "$jar" 2>/dev/null || stat -c%s "$jar" 2>/dev/null || echo "unknown")
@@ -131,7 +134,7 @@ for props_file in version_properties/*.properties; do
     version=$(basename "$props_file" .properties)
     echo "Checking for Minecraft $version JAR..."
     # Check for JAR files with correct pattern
-    if ls build/buildAllJars/peek-*+$version.jar >/dev/null 2>&1; then
+    if ls build/buildAllJars/$MOD_ARCHIVE_NAME-*+$version.jar >/dev/null 2>&1; then
         echo "✓ Found JAR for Minecraft $version"
     else
         echo "WARNING: Missing JAR for Minecraft $version"

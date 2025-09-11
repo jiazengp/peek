@@ -87,18 +87,31 @@ jobs:
           echo "Building mod for Minecraft ${{ matrix.minecraft-version }}..."
           ./gradlew build -PmcVer=${{ matrix.minecraft-version }}
 
+      - name: get mod info
+        id: mod-info
+        run: |
+          # Extract mod info from gradle.properties and fabric.mod.json
+          MOD_ARCHIVE_NAME=$(grep '^archives_base_name=' gradle.properties | cut -d'=' -f2)
+          MOD_NAME=$(grep '"name":' src/main/resources/fabric.mod.json | sed 's/.*"name": *"\([^"]*\)".*/\1/')
+          
+          echo "mod-archive-name=$MOD_ARCHIVE_NAME" >> $GITHUB_OUTPUT
+          echo "mod-name=$MOD_NAME" >> $GITHUB_OUTPUT
+          
+          echo "Detected mod archive name: $MOD_ARCHIVE_NAME"
+          echo "Detected mod name: $MOD_NAME"
+
       - name: verify build artifacts
         run: |
           echo "Verifying build artifacts for Minecraft ${{ matrix.minecraft-version }}..."
           
           # Check JAR file exists
-          if ! ls build/libs/peek-*+${{ matrix.minecraft-version }}.jar >/dev/null 2>&1; then
+          if ! ls build/libs/${{ steps.mod-info.outputs.mod-archive-name }}-*+${{ matrix.minecraft-version }}.jar >/dev/null 2>&1; then
             echo "ERROR: JAR file not found for Minecraft ${{ matrix.minecraft-version }}"
             exit 1
           fi
           
           # Check JAR file size (should be reasonable)
-          jar_file=$(ls build/libs/peek-*+${{ matrix.minecraft-version }}.jar)
+          jar_file=$(ls build/libs/${{ steps.mod-info.outputs.mod-archive-name }}-*+${{ matrix.minecraft-version }}.jar)
           jar_size=$(stat -c%s "$jar_file")
           
           if [ "$jar_size" -lt 10000 ]; then
@@ -118,7 +131,7 @@ jobs:
         run: |
           echo "Verifying mod metadata for Minecraft ${{ matrix.minecraft-version }}..."
           
-          jar_file=$(ls build/libs/peek-*+${{ matrix.minecraft-version }}.jar)
+          jar_file=$(ls build/libs/${{ steps.mod-info.outputs.mod-archive-name }}-*+${{ matrix.minecraft-version }}.jar)
           
           # Extract and check fabric.mod.json
           unzip -q "$jar_file" fabric.mod.json -d temp_extract/
@@ -144,7 +157,7 @@ jobs:
         with:
           name: compatibility-test-${{ matrix.minecraft-version }}
           path: |
-            build/libs/peek-*+${{ matrix.minecraft-version }}.jar
+            build/libs/${{ steps.mod-info.outputs.mod-archive-name }}-*+${{ matrix.minecraft-version }}.jar
             build.properties
           retention-days: 7
 
