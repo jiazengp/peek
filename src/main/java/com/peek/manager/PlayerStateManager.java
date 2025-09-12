@@ -4,6 +4,7 @@ import com.peek.PeekMod;
 import com.peek.data.PeekDataStorage;
 import com.peek.data.peek.PlayerPeekData;
 import com.peek.data.peek.PlayerState;
+import com.peek.manager.constants.GameConstants;
 import com.peek.manager.constants.PeekConstants;
 import eu.pb4.playerdata.api.PlayerDataApi;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -202,9 +203,9 @@ public class PlayerStateManager extends BaseManager {
             // Basic validation checks
             if (state.position() == null) return false;
             if (state.gameMode() == null) return false;
-            if (state.fireTicks() < 0 || state.fireTicks() > 32767) return false; // Reasonable fire ticks bounds
-            if (state.air() < 0 || state.air() > 300) return false; // Reasonable air bounds (300 is max)
-            if (state.vehicleBubbleTime() < 0) return false; // Vehicle bubble time should not be negative
+            if (state.fireTicks() < GameConstants.MIN_FIRE_TICKS || state.fireTicks() > GameConstants.MAX_FIRE_TICKS) return false;
+            if (state.air() < GameConstants.MIN_AIR_VALUE || state.air() > GameConstants.MAX_AIR_VALUE) return false;
+            if (state.vehicleBubbleTime() < GameConstants.MIN_VEHICLE_BUBBLE_TIME) return false;
             
             return true;
         } catch (Exception e) {

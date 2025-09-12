@@ -2,6 +2,7 @@ package com.peek.utils;
 
 import com.peek.PeekMod;
 import com.peek.config.ModConfigManager;
+import com.peek.manager.constants.GameConstants;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
@@ -16,6 +17,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 /**
  * Simple particle effects utility for peek sessions
@@ -24,6 +26,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ParticleEffectManager {
     
     private static final Random RANDOM = new Random();
+    
+    // 颜色验证的正则表达式模式
+    private static final String HEX_COLOR_PATTERN = "^[0-9A-Fa-f]{6}$";
+    private static final Pattern HEX_PATTERN = Pattern.compile(HEX_COLOR_PATTERN);
     
     // Simple tracking: just the players that need particle effects and their tick counters
     private static final ConcurrentHashMap<UUID, Integer> playerTickCounters = new ConcurrentHashMap<>();
@@ -160,10 +166,13 @@ public class ParticleEffectManager {
                 return; // Invalid particle type configured
             }
             
-            // Configuration values
-            int particleCount = Math.max(1, Math.min(10, ModConfigManager.getParticlesPerSpawn())); // Limit to prevent spam
-            double spread = Math.max(0.1, Math.min(3.0, ModConfigManager.getParticleSpread())); // Reasonable limits
-            double velocity = Math.max(0.0, Math.min(0.3, ModConfigManager.getParticleVelocity())); // Limit velocity
+            // Configuration values with constants
+            int particleCount = Math.max(GameConstants.MIN_PARTICLES_PER_SPAWN, 
+                Math.min(GameConstants.MAX_PARTICLES_PER_SPAWN, ModConfigManager.getParticlesPerSpawn()));
+            double spread = Math.max(GameConstants.MIN_PARTICLE_SPREAD, 
+                Math.min(GameConstants.MAX_PARTICLE_SPREAD, ModConfigManager.getParticleSpread()));
+            double velocity = Math.max(GameConstants.MIN_PARTICLE_VELOCITY, 
+                Math.min(GameConstants.MAX_PARTICLE_VELOCITY, ModConfigManager.getParticleVelocity()));
             
             // Spawn particles around the peeker with some randomization to avoid blocking view
             for (int i = 0; i < particleCount; i++) {
@@ -174,15 +183,16 @@ public class ParticleEffectManager {
                 double offsetZ = (RANDOM.nextDouble() - 0.5) * spread * 2;
                 
                 // Avoid particles directly in front of the player's view
-                if (Math.abs(offsetX) < 0.3 && offsetZ > -0.3) {
-                    offsetZ -= 1.0; // Push particles behind the player
+                if (Math.abs(offsetX) < GameConstants.PARTICLE_VIEW_OBSTRUCTION_X_THRESHOLD && 
+                    offsetZ > GameConstants.PARTICLE_VIEW_OBSTRUCTION_Z_THRESHOLD) {
+                    offsetZ -= GameConstants.PARTICLE_PUSH_BACK_DISTANCE; // Push particles behind the player
                 }
                 
                 Vec3d particlePos = peekerPos.add(offsetX, offsetY, offsetZ);
                 
                 // Randomize particle velocity to create natural movement
                 double velocityX = (RANDOM.nextDouble() - 0.5) * velocity;
-                double velocityY = RANDOM.nextDouble() * velocity * 0.5; // Slight upward bias
+                double velocityY = RANDOM.nextDouble() * velocity * GameConstants.PARTICLE_UPWARD_VELOCITY_BIAS; // Slight upward bias
                 double velocityZ = (RANDOM.nextDouble() - 0.5) * velocity;
                 
                 // Determine who should see the particles
@@ -244,19 +254,26 @@ public class ParticleEffectManager {
      * Parse hex color string to int for DustParticleEffect
      */
     private static int parseHexColorToInt(String hexColor) {
+        if (hexColor == null || hexColor.trim().isEmpty()) {
+            PeekMod.LOGGER.warn("Null or empty hex color provided, using default cyan");
+            return GameConstants.DEFAULT_PARTICLE_COLOR;
+        }
+
+        hexColor = hexColor.trim().replace("#", "").toUpperCase();
+
+        if (!HEX_PATTERN.matcher(hexColor).matches()) {
+            PeekMod.LOGGER.warn("Invalid hex color format '{}', must be exactly {} hex digits (0-9, A-F), using default cyan", 
+                hexColor, GameConstants.HEX_COLOR_LENGTH);
+            return GameConstants.DEFAULT_PARTICLE_COLOR;
+        }
+
         try {
-            // Remove # if present
-            hexColor = hexColor.replace("#", "");
-            
-            // Default to cyan if invalid
-            if (hexColor.length() != 6) {
-                return 0x00FFFF; // Cyan
-            }
-            
-            return Integer.parseInt(hexColor, 16);
-        } catch (Exception e) {
-            PeekMod.LOGGER.warn("Invalid hex color '{}', using default cyan", hexColor);
-            return 0x00FFFF; // Cyan
+            int color = Integer.parseInt(hexColor, 16);
+            PeekMod.LOGGER.debug("Successfully parsed hex color '{}' to integer: 0x{}", hexColor, Integer.toHexString(color));
+            return color;
+        } catch (NumberFormatException e) {
+            PeekMod.LOGGER.warn("Failed to parse hex color '{}' to integer: {}, using default cyan", hexColor, e.getMessage());
+            return GameConstants.DEFAULT_PARTICLE_COLOR;
         }
     }
     

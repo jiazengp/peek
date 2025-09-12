@@ -3,6 +3,7 @@ package com.peek.manager;
 import com.peek.PeekMod;
 import com.peek.config.ModConfigManager;
 import com.peek.manager.constants.ErrorCodes;
+import com.peek.manager.constants.GameConstants;
 import com.peek.data.peek.PeekRequest;
 import com.peek.data.peek.PeekSession;
 import com.peek.utils.CommandUtils;
@@ -52,8 +53,8 @@ public class PeekRequestManager extends BaseManager {
     public void onServerTick() {
         tickTaskManager.processTick();
         
-        // Cleanup every 30 seconds (600 ticks)
-        if (++cleanupTickCounter >= 600) {
+        // Cleanup every 30 seconds
+        if (++cleanupTickCounter >= GameConstants.REQUEST_CLEANUP_INTERVAL_TICKS) {
             cleanupTickCounter = 0;
             cleanupExpiredRequests();
         }

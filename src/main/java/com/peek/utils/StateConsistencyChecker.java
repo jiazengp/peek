@@ -4,6 +4,7 @@ import com.peek.PeekMod;
 import com.peek.manager.ManagerRegistry;
 import com.peek.manager.PeekRequestManager;
 import com.peek.manager.PeekSessionManager;
+import com.peek.manager.constants.GameConstants;
 import com.peek.data.peek.PeekSession;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -167,7 +168,7 @@ public class StateConsistencyChecker {
             
             // Check session duration (if it's been running too long without updates)
             long duration = session.getDurationSeconds();
-            if (duration > 3600) { // 1 hour - configurable threshold
+            if (duration > GameConstants.LONG_RUNNING_SESSION_THRESHOLD_SECONDS) {
                 PeekMod.LOGGER.warn("Found long-running session {} ({}s) between {} and {}", 
                     session.getId(), duration, session.getPeekerName(), session.getTargetName());
                 // Could add automatic cleanup for extremely long sessions

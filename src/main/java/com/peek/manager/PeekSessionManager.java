@@ -7,6 +7,7 @@ import com.peek.data.peek.PeekSession;
 import com.peek.data.peek.PlayerPeekData;
 import com.peek.data.peek.PlayerState;
 import com.peek.manager.constants.ErrorCodes;
+import com.peek.manager.constants.GameConstants;
 import com.peek.manager.constants.PeekConstants;
 import com.peek.manager.exceptions.TeleportationException;
 import com.peek.manager.session.SessionCreationContext;
@@ -457,8 +458,6 @@ public class PeekSessionManager extends BaseManager {
                     
                         // Update command tree for peeker (remove stop command)
                         com.peek.utils.CommandUtils.updateCommandTree(peeker);
-                    } else {
-                        PeekMod.LOGGER.warn("Cannot restore player {} - registry manager not available", peeker.getGameProfile().getName());
                     }
                 } else {
                     // Player is offline - save their original state using PlayerDataAPI's offline support
@@ -531,9 +530,8 @@ public class PeekSessionManager extends BaseManager {
             updateSessions();
         }
         
-        // Cleanup every 60 seconds (1200 ticks)
-        long cleanupIntervalTicks = PeekConstants.CLEANUP_INTERVAL_SECONDS * PeekConstants.DEFAULT_STATIC_TICKS;
-        if (++cleanupTickCounter >= cleanupIntervalTicks) {
+        // Cleanup every 60 seconds
+        if (++cleanupTickCounter >= GameConstants.SESSION_CLEANUP_INTERVAL_TICKS) {
             cleanupTickCounter = 0;
             cleanupInactiveSessions();
             cleanupExpiredCircularPeekRecords();
@@ -836,7 +834,7 @@ public class PeekSessionManager extends BaseManager {
     private void cleanupExpiredCircularPeekRecords() {
         long currentTime = System.currentTimeMillis();
         recentCircularPeeks.entrySet().removeIf(entry -> 
-            (currentTime - entry.getValue()) > 60000 // Remove records older than 1 minute
+            (currentTime - entry.getValue()) > GameConstants.CIRCULAR_PEEK_EXPIRY_MILLIS
         );
     }
     

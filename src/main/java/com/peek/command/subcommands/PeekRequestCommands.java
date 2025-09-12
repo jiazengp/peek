@@ -8,6 +8,7 @@ import com.peek.data.peek.PeekSession;
 import com.peek.manager.ManagerRegistry;
 import com.peek.manager.PeekRequestManager;
 import com.peek.manager.PeekSessionManager;
+import com.peek.utils.CommandRequestProcessor;
 import com.peek.utils.CommandUtils;
 import com.peek.manager.constants.PeekConstants;
 import com.peek.utils.TextUtils;
@@ -103,62 +104,19 @@ public class PeekRequestCommands {
     }
     
     private static int acceptRequest(CommandContext<ServerCommandSource> context) {
-        return CommandUtils.executePlayerCommand(context, (player) -> {
-            PeekRequest request;
-            
-            // Check if requester argument was provided
-            try {
-                ServerPlayerEntity requester = CommandUtils.getPlayerArgument(context, "requester");
-                request = ValidationUtils.validatePendingRequest(player.getUuid(), player);
-                if (requester != null) {
-                    // Validate that this specific player has sent a request to us
-                    if (request == null || !request.getRequesterId().equals(requester.getUuid())) {
-                        player.sendMessage(Text.literal("§c" + Text.translatable("peek.error.no_request_from_player", requester.getName().getString()).getString()), false);
-                        return 0;
-                    }
-                } else {
-                    // No requester specified, use the first pending request (existing behavior)
-                    if (request == null) return 0;
-                }
-            } catch (Exception e) {
-                // No requester argument provided, use existing logic
-                request = ValidationUtils.validatePendingRequest(player.getUuid(), player);
-                if (request == null) return 0;
-            }
-            
-            PeekConstants.Result<PeekRequest> result = ManagerRegistry.getInstance().getManager(PeekRequestManager.class).acceptRequest(player, request.getId());
-            if (!ValidationUtils.validateResult(result, player)) return 0;
-            
-            return 1;
+        return CommandRequestProcessor.executeRequestCommand(context, "requester", (input) -> {
+            PeekRequestManager requestManager = ManagerRegistry.getInstance().getManager(PeekRequestManager.class);
+            PeekConstants.Result<PeekRequest> result = requestManager.acceptRequest(input.getPlayer(), input.getRequest().getId());
+            return ValidationUtils.validateResult(result, input.getPlayer());
         });
     }
     
     private static int denyRequest(CommandContext<ServerCommandSource> context) {
-        return CommandUtils.executePlayerCommand(context, (player) -> {
-            PeekRequest request;
-            
-            // Check if requester argument was provided
-            try {
-                ServerPlayerEntity requester = CommandUtils.getPlayerArgument(context, "requester");
-                request = ValidationUtils.validatePendingRequest(player.getUuid(), player);
-                if (requester != null) {
-                    // Validate that this specific player has sent a request to us
-                    if (request == null || !request.getRequesterId().equals(requester.getUuid())) {
-                        player.sendMessage(Text.literal("§c" + Text.translatable("peek.error.no_request_from_player", requester.getName().getString()).getString()), false);
-                        return 0;
-                    }
-                } else {
-                    // No requester specified, use the first pending request (existing behavior)
-                    if (request == null) return 0;
-                }
-            } catch (Exception e) {
-                // No requester argument provided, use existing logic
-                request = ValidationUtils.validatePendingRequest(player.getUuid(), player);
-                if (request == null) return 0;
-            }
-            
-            ManagerRegistry.getInstance().getManager(PeekRequestManager.class).denyRequest(player, request.getId());
-            return 1;
+        return CommandRequestProcessor.executeRequestCommand(context, "requester", (input) -> {
+            PeekRequestManager requestManager = ManagerRegistry.getInstance().getManager(PeekRequestManager.class);
+            PeekConstants.Result<PeekRequest> result = requestManager.denyRequest(input.getPlayer(), input.getRequest().getId());
+            // denyRequest returns Result, but we can still validate it for consistency
+            return ValidationUtils.validateResult(result, input.getPlayer());
         });
     }
     

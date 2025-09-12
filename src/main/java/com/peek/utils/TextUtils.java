@@ -1,6 +1,7 @@
 package com.peek.utils;
 
 import com.peek.PeekMod;
+import com.peek.manager.constants.GameConstants;
 import com.peek.utils.compat.TextEventCompat;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
@@ -58,15 +59,15 @@ public class TextUtils {
     // Duration formatting
     
     public static String formatDuration(long seconds) {
-        if (seconds < 60) {
+        if (seconds < GameConstants.SECONDS_PER_MINUTE) {
             return seconds + "s";
-        } else if (seconds < 3600) {
-            long minutes = seconds / 60;
-            long remainingSeconds = seconds % 60;
+        } else if (seconds < GameConstants.SECONDS_PER_HOUR) {
+            long minutes = seconds / GameConstants.SECONDS_PER_MINUTE;
+            long remainingSeconds = seconds % GameConstants.SECONDS_PER_MINUTE;
             return minutes + "m " + remainingSeconds + "s";
         } else {
-            long hours = seconds / 3600;
-            long minutes = (seconds % 3600) / 60;
+            long hours = seconds / GameConstants.SECONDS_PER_HOUR;
+            long minutes = (seconds % GameConstants.SECONDS_PER_HOUR) / GameConstants.SECONDS_PER_MINUTE;
             return hours + "h " + minutes + "m";
         }
     }
