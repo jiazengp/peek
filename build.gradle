@@ -26,11 +26,26 @@ def compatibleVersions = versionProperties.getProperty("minecraft_version")
 // Parse version components once for reuse
 def parseVersionComponents(String version) {
 	def parts = version.split('\\.')
+	def major = parts.length > 0 ? parts[0] : "1"
+	def minor = parts.length > 1 ? parts[1] : "21"
+	def patch = parts.length > 2 ? parts[2] : "0"
+	
+	// Format version number for MC_VER (handle both 1.20 and 1.21.x formats)
+	def formattedVersion
+	if (parts.length == 2) {
+		// 1.20 format -> 120
+		formattedVersion = "${major}${minor}"
+	} else {
+		// 1.21.x format -> 121x
+		formattedVersion = "${major}${minor}${patch}"
+	}
+	
 	return [
-		major: parts.length > 0 ? parts[0] : "1",
-		minor: parts.length > 1 ? parts[1] : "21", 
-		patch: parts.length > 2 ? parts[2] : "0",
-		full: version
+		major: major,
+		minor: minor, 
+		patch: patch,
+		full: version,
+		formatted: formattedVersion
 	]
 }
 
@@ -47,7 +62,7 @@ def writeBuildGradlePredefine(Properties versionProps, mcInfo) {
 	sb.append("\n")
 	
 	// Version flags using parsed components
-	sb.append("MC_VER=${mcInfo.major}${mcInfo.minor}${mcInfo.patch}\n")
+	sb.append("MC_VER=${mcInfo.formatted}\n")
 	sb.append("MC_${mcInfo.major}_${mcInfo.minor}_${mcInfo.patch}=1\n")
 	sb.append("MC_MAJOR=${mcInfo.major}\n")
 	sb.append("MC_MINOR=${mcInfo.minor}\n") 
