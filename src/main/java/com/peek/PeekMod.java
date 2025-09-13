@@ -1,7 +1,6 @@
 package com.peek;
 
 import com.peek.command.PeekCommand;
-import com.peek.command.PeekAdminCommand;
 import com.peek.config.ModConfigManager;
 import com.peek.data.PeekDataStorage;
 import com.peek.manager.*;
@@ -37,7 +36,6 @@ public class PeekMod implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register(
 				(dispatcher, registryAccess, environment) -> {
 					PeekCommand.register(dispatcher);
-					PeekAdminCommand.register(dispatcher);
 				}
 		);
 

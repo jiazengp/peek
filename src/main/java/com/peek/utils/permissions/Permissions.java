@@ -9,6 +9,10 @@ public final class Permissions {
     public static final String MANAGE = "manage";
     public static final String CHAT = "chat";
     
+    // Root permission nodes with full path
+    public static final String ROOT_ADMIN = node(ADMIN);
+    public static final String ROOT_MANAGE = node(COMMAND, MANAGE);
+    
     // Command permissions for peek operations
     public enum CommandType {
         PEEK("peek"),
@@ -76,24 +80,31 @@ public final class Permissions {
         private Command() {}
     }
     
-    // Admin permissions for administrative operations
+    // Admin permissions for administrative operations (deprecated - use Manage instead)
+    @Deprecated
     public static final class Admin {
-        public static final String STATS = node(ADMIN, "stats");
-        public static final String TOP = node(ADMIN, "top");
-        public static final String LIST = node(ADMIN, "list");
-        public static final String PLAYER = node(ADMIN, "player");
-        public static final String SESSIONS = node(ADMIN, "sessions");
-        public static final String CLEANUP = node(ADMIN, "cleanup");
-        public static final String FORCE_STOP = node(ADMIN, "force_stop");
+        @Deprecated public static final String STATS = node(COMMAND, MANAGE, "stats");
+        @Deprecated public static final String TOP = node(COMMAND, MANAGE, "top");
+        @Deprecated public static final String LIST = node(COMMAND, MANAGE, "list");
+        @Deprecated public static final String PLAYER = node(COMMAND, MANAGE, "player");
+        @Deprecated public static final String SESSIONS = node(COMMAND, MANAGE, "sessions");
+        @Deprecated public static final String CLEANUP = node(COMMAND, MANAGE, "cleanup");
+        @Deprecated public static final String FORCE_STOP = node(COMMAND, MANAGE, "force_stop");
         
         private Admin() {}
     }
     
     public static final class Manage {
-        public static final String ABOUT = node(MANAGE, "about");
-        public static final String RELOAD = node(MANAGE, "reload");
-        public static final String LIST = node(MANAGE, "list");
-        public static final String CANCEL = node(MANAGE, "cancel");
+        public static final String STATS = node(COMMAND, MANAGE, "stats");
+        public static final String TOP = node(COMMAND, MANAGE, "top");
+        public static final String LIST = node(COMMAND, MANAGE, "list");
+        public static final String PLAYER = node(COMMAND, MANAGE, "player");
+        public static final String SESSIONS = node(COMMAND, MANAGE, "sessions");
+        public static final String CLEANUP = node(COMMAND, MANAGE, "cleanup");
+        public static final String FORCE_STOP = node(COMMAND, MANAGE, "force_stop");
+        public static final String ABOUT = node(COMMAND, MANAGE, "about");
+        public static final String RELOAD = node(COMMAND, MANAGE, "reload");
+        public static final String CANCEL = node(COMMAND, MANAGE, "cancel");
         
         private Manage() {}
     }

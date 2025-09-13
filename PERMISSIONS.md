@@ -16,18 +16,20 @@
 - `peek.command.blacklist` - 管理黑名单 (/peek settings blacklist)
 - `peek.command.stats` - 查看统计信息 (/peek stats)
 
-### 管理员权限 (peek.admin.*)
+### 管理权限 (peek.command.manage.*)
 
-管理员命令，默认权限等级为 2-3：
+管理命令，默认权限等级为 2-3：
 
-- `peek.admin` - 访问管理员命令面板 (/peekadmin) [权限等级: 2]
-- `peek.admin.stats` - 查看全局统计 (/peekadmin stats) [权限等级: 2]
-- `peek.admin.top` - 查看排行榜 (/peekadmin top) [权限等级: 2]
-- `peek.admin.list` - 查看玩家列表 (/peekadmin list) [权限等级: 2]
-- `peek.admin.player` - 查看玩家详情 (/peekadmin player) [权限等级: 2]
-- `peek.admin.sessions` - 查看活跃会话 (/peekadmin sessions) [权限等级: 2]
-- `peek.admin.cleanup` - 执行数据清理 (/peekadmin cleanup) [权限等级: 3]
-- `peek.admin.force_stop` - 强制停止会话 (/peekadmin force-stop) [权限等级: 3]
+- `peek.command.manage` - 访问管理命令面板 (/peek manage) [权限等级: 2]
+- `peek.command.manage.stats` - 查看全局统计 (/peek manage stats) [权限等级: 2]
+- `peek.command.manage.top` - 查看排行榜 (/peek manage top) [权限等级: 2]
+- `peek.command.manage.list` - 查看玩家列表 (/peek manage list) [权限等级: 2]
+- `peek.command.manage.player` - 查看玩家详情 (/peek manage player) [权限等级: 2]
+- `peek.command.manage.sessions` - 查看活跃会话 (/peek manage sessions) [权限等级: 2]
+- `peek.command.manage.cleanup` - 执行数据清理 (/peek manage cleanup) [权限等级: 3]
+- `peek.command.manage.force_stop` - 强制停止会话 (/peek manage force-stop) [权限等级: 3]
+- `peek.command.manage.reload` - 重新加载配置 (/peek manage reload) [权限等级: 3]
+- `peek.command.manage.about` - 查看模组信息 (/peek manage about) [权限等级: 2]
 
 ### 豁免权限 (peek.bypass.*)
 
@@ -53,7 +55,7 @@
 lp user <username> permission set peek.command.peek true
 
 # 给玩家管理员权限
-lp user <username> permission set peek.admin true
+lp user <username> permission set peek.command.manage true
 
 # 禁止玩家使用某个功能
 lp user <username> permission set peek.command.blacklist false
@@ -71,7 +73,7 @@ lp user <username> permission set peek.command.blacklist false
 
 权限系统支持层级继承：
 
-- `peek.admin` 权限自动包含所有 `peek.admin.*` 子权限
+- `peek.command.manage` 权限自动包含所有 `peek.command.manage.*` 子权限
 - `peek.command` 权限自动包含所有 `peek.command.*` 子权限
 
 ### LuckPerms 组配置示例
@@ -97,18 +99,20 @@ group.vip:
 group.admin:
   parent: vip
   permissions:
-    - peek.admin.stats
-    - peek.admin.top
-    - peek.admin.list
-    - peek.admin.player
-    - peek.admin.sessions
+    - peek.command.manage.stats
+    - peek.command.manage.top
+    - peek.command.manage.list
+    - peek.command.manage.player
+    - peek.command.manage.sessions
 
 # 超级管理员组
 group.superadmin:
   parent: admin
   permissions:
-    - peek.admin.cleanup
-    - peek.admin.force_stop
+    - peek.command.manage.cleanup
+    - peek.command.manage.force_stop
+    - peek.command.manage.reload
+    - peek.command.manage.about
     - peek.bypass.cooldown
     - peek.bypass.distance
     - peek.bypass.time_limit
@@ -132,7 +136,7 @@ group.superadmin:
    - 这是正常行为，有助于隐藏用户无法使用的命令
 
 3. **管理员命令无法使用**
-   - 确认用户有 `peek.admin` 权限或对应的子权限
+   - 确认用户有 `peek.command.manage` 权限或对应的子权限
    - 检查权限等级设置
 
 ### 调试命令

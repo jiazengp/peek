@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.peek.command.subcommands.PeekRequestCommands;
 import com.peek.command.subcommands.PeekSettingsCommands;
 import com.peek.command.subcommands.PeekUtilityCommands;
+import com.peek.command.subcommands.PeekManageCommands;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 
@@ -30,6 +31,9 @@ public class PeekCommand {
             .then(PeekUtilityCommands.createStatsCommand())
             .then(PeekUtilityCommands.createInviteCommand())
             .then(PeekUtilityCommands.createDebugCommand())
+            
+            // Management commands
+            .then(PeekManageCommands.createManageCommand())
             
             // Default usage
             .executes(PeekUtilityCommands::showUsage));

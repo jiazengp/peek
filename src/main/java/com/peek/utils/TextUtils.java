@@ -44,9 +44,26 @@ public class TextUtils {
             .append(Text.literal(String.valueOf(value)).formatted(Formatting.WHITE));
     }
     
+    public static void addStatLine(MutableText message, Text label, Object value) {
+        message.append(newline())
+            .append(label.copy().append(Text.literal(": ")).formatted(Formatting.YELLOW));
+        
+        if (value instanceof Text) {
+            message.append(((Text) value).copy().formatted(Formatting.WHITE));
+        } else {
+            message.append(Text.literal(String.valueOf(value)).formatted(Formatting.WHITE));
+        }
+    }
+    
     public static void addColoredStat(MutableText message, String label, String value, Formatting color) {
         message.append(newline())
             .append(Text.literal(label + ": ").formatted(Formatting.YELLOW))
+            .append(Text.literal(value).formatted(color));
+    }
+    
+    public static void addColoredStat(MutableText message, Text label, String value, Formatting color) {
+        message.append(newline())
+            .append(label.copy().append(Text.literal(": ")).formatted(Formatting.YELLOW))
             .append(Text.literal(value).formatted(color));
     }
     

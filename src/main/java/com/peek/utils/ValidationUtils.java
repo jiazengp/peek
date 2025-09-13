@@ -131,7 +131,7 @@ public class ValidationUtils {
      */
     public static boolean validatePlayerPeeking(java.util.UUID playerId, ServerPlayerEntity executor) {
         if (!ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(playerId)) {
-            executor.sendMessage(Text.translatable("peek.admin.player_not_peeking").formatted(Formatting.RED), false);
+            executor.sendMessage(Text.translatable("peek.manage.player_not_peeking").formatted(Formatting.RED), false);
             return false;
         }
         return true;

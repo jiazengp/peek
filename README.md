@@ -38,18 +38,18 @@ A server-side Minecraft mod that lets you see what your friends and other player
 /peek settings whitelist <add/remove/list> [player]  # Manage whitelist
 ```
 
-### Admin Commands
+### Management Commands
 
 ```
-/peekadmin stats                    # View global statistics  
-/peekadmin top [page]              # Show top players by peek count
-/peekadmin list [page] [sort]      # List all players with stats
-/peekadmin player <player>         # Show detailed player information
-/peekadmin sessions                # View all active peek sessions
-/peekadmin force-stop <player>     # Force stop a player's session
-/peekadmin cleanup                 # Perform data cleanup
-/peekadmin reload                  # Reload configuration
-/peekadmin about                   # Show mod information
+/peek manage stats                    # View global statistics  
+/peek manage top [page]              # Show top players by peek count
+/peek manage list [page] [sort]      # List all players with stats
+/peek manage player <player>         # Show detailed player information
+/peek manage sessions                # View all active peek sessions
+/peek manage force-stop <player>     # Force stop a player's session
+/peek manage cleanup                 # Perform data cleanup
+/peek manage reload                  # Reload configuration
+/peek manage about                   # Show mod information
 ```
 
 ## 🔌 Developer API
@@ -69,6 +69,13 @@ The mod provides several placeholders for use with other mods or display systems
 ## ⚙️ Configuration
 
 Main configuration file: `config/peek/config.yml` (YAML format)
+
+## 🔐 Permission Nodes
+
+The mod uses a comprehensive permission system of LuckPerms for fine-grained access control:
+
+**📖 For complete permission documentation and LuckPerms examples:**  
+👉 [View Full Permission Guide](https://github.com/jiazengp/peek/blob/main/PERMISSIONS.md)
 
 ## 📝 License
 
