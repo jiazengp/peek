@@ -1,10 +1,10 @@
-# Peek Mod
+# Let Me Peek
 
-A server-side Minecraft mod that lets you see what your friends and other players are doing through simple command requests, without needing to teleport to them.
+A server-side Minecraft mod that lets you observe what your friends and other players are doing through simple commands—without physically moving your player.
 
 ## ✨ Features
 
-- **Player Observation**: Teleport to and observe from any player's viewpoint
+- **Player Observation**: View from any player's perspective without moving yourself
 - **State Protection**: Automatically saves and restores your position, items, and status effects
 - **Flexible Switching**: Switch between different observation targets seamlessly  
 - **Privacy Controls**: Private mode, blacklist/whitelist system, and auto-accept settings
@@ -18,15 +18,15 @@ A server-side Minecraft mod that lets you see what your friends and other player
 ### Core Peek Commands
 
 ```
-/peek <player>              # Start observing a player
-/peek accept                # Accept an incoming peek request
-/peek deny                  # Deny an incoming peek request  
-/peek stop                  # Stop current peek session
-/peek cancel [player]       # Cancel your outgoing request or specific player's
-/peek who                   # Show who you're peeking or who's peeking you
-/peek invite <player>       # Send a peek invitation
-/peek stats [player]        # View peek statistics
-/peek debug                 # Show debug information (ops only)
+/peek player <player>              # Start observing a player
+/peek accept <player>              # Accept an incoming peek request
+/peek deny <player>                # Deny an incoming peek request  
+/peek stop                         # Stop current peek session
+/peek cancel [player]              # Cancel your outgoing request or specific player's
+/peek who                          # Show who you're peeking or who's peeking you
+/peek invite <player>              # Send a peek invitation
+/peek stats [player (ops only)]    # View peek statistics
+/peek debug                        # Show debug information (ops only)
 ```
 
 ### Settings Commands
