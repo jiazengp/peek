@@ -6,6 +6,7 @@ import com.peek.data.peek.PlayerPeekData;
 import com.peek.data.peek.PlayerState;
 import com.peek.manager.constants.GameConstants;
 import com.peek.manager.constants.PeekConstants;
+import com.peek.utils.compat.ProfileCompat;
 import eu.pb4.playerdata.api.PlayerDataApi;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -32,29 +33,29 @@ public class PlayerStateManager extends BaseManager {
             // Capture current state
             var registryManager = com.peek.utils.compat.PlayerCompat.getRegistryManager(player);
             if (registryManager == null) {
-                PeekMod.LOGGER.error("Cannot capture player state for {} - server or registry manager not available", player.getGameProfile().getName());
+                PeekMod.LOGGER.error("Cannot capture player state for {} - server or registry manager not available", ProfileCompat.getName(player.getGameProfile()));
                 return PeekConstants.Result.failure("Server not available");
             }
             PlayerState state = PlayerState.capture(player, registryManager);
-            
+
             if (persistent) {
                 // Save to persistent storage via PlayerDataAPI for crash recovery
                 PlayerPeekData playerData = com.peek.data.peek.PlayerPeekData.getOrCreate(player);
-                
+
                 playerData = playerData.withSavedState(state);
                 PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, playerData);
-                
-                PeekMod.LOGGER.info("Saved persistent state for player {} to PlayerDataAPI", player.getGameProfile().getName());
+
+                PeekMod.LOGGER.info("Saved persistent state for player {} to PlayerDataAPI", ProfileCompat.getName(player.getGameProfile()));
             } else {
                 // Save to temporary cache for quick access
                 tempStateCache.put(playerId, state);
-                PeekMod.LOGGER.debug("Saved temporary state for player {}", player.getGameProfile().getName());
+                PeekMod.LOGGER.debug("Saved temporary state for player {}", ProfileCompat.getName(player.getGameProfile()));
             }
-            
+
             return PeekConstants.Result.success(state);
-            
+
         } catch (Exception e) {
-            PeekMod.LOGGER.error("Error saving player state for {}", player.getGameProfile().getName(), e);
+            PeekMod.LOGGER.error("Error saving player state for {}", ProfileCompat.getName(player.getGameProfile()), e);
             return PeekConstants.Result.failure(Text.translatable("peek.message.failed_to_save_state").getString());
         }
     }
@@ -117,16 +118,16 @@ public class PlayerStateManager extends BaseManager {
      */
     public PeekConstants.Result<String> performCrashRecovery(ServerPlayerEntity player) {
         try {
-            PeekMod.LOGGER.debug("Crash recovery: Getting player data for {}", player.getGameProfile().getName());
+            PeekMod.LOGGER.debug("Crash recovery: Getting player data for {}", ProfileCompat.getName(player.getGameProfile()));
             PlayerPeekData playerData = com.peek.data.peek.PlayerPeekData.getOrCreate(player);
-            
-            PeekMod.LOGGER.debug("Crash recovery: Player data retrieved. HasSavedState: {}, SavedState: {}", 
+
+            PeekMod.LOGGER.debug("Crash recovery: Player data retrieved. HasSavedState: {}, SavedState: {}",
                 playerData.hasSavedState(), playerData.savedState() != null ? "Present" : "Null");
-            
+
             if (playerData.hasSavedState()) {
                 PlayerState savedState = playerData.savedState();
-                
-                PeekMod.LOGGER.debug("Found saved state for player {} - attempting crash recovery", player.getGameProfile().getName());
+
+                PeekMod.LOGGER.debug("Found saved state for player {} - attempting crash recovery", ProfileCompat.getName(player.getGameProfile()));
                 if (savedState != null) {
                     PeekMod.LOGGER.debug("Saved state details: pos={}, fire={}, air={}, gamemode={}",
                         savedState.position(), savedState.fireTicks(), savedState.air(), savedState.gameMode());
@@ -134,54 +135,54 @@ public class PlayerStateManager extends BaseManager {
 
                 // Validate the state before restoration
                 if (!isStateValid(savedState)) {
-                    PeekMod.LOGGER.warn("Saved state for player {} is invalid - clearing it", player.getGameProfile().getName());
+                    PeekMod.LOGGER.warn("Saved state for player {} is invalid - clearing it", ProfileCompat.getName(player.getGameProfile()));
                     // Clear the invalid saved state
                     playerData = playerData.withSavedState(null);
                     PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, playerData);
                     // PlayerDataAPI will automatically save this data for online players
                     return PeekConstants.Result.failure("Saved state was invalid and has been cleared");
                 }
-                
+
                 // Attempt to restore the state
                 try {
                     restoreState(player, savedState);
-                    PeekMod.LOGGER.debug("State restoration completed successfully for player {}", player.getGameProfile().getName());
-                    
+                    PeekMod.LOGGER.debug("State restoration completed successfully for player {}", ProfileCompat.getName(player.getGameProfile()));
+
                     // Only clear the saved state after successful restoration
                     playerData = playerData.withSavedState(null);
                     PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, playerData);
                     // PlayerDataAPI will automatically save this data for online players
-                    PeekMod.LOGGER.debug("Cleared saved state after successful recovery for player {}", player.getGameProfile().getName());
-                    
-                    PeekMod.LOGGER.debug("Successfully performed crash recovery for player {}", player.getGameProfile().getName());
+                    PeekMod.LOGGER.debug("Cleared saved state after successful recovery for player {}", ProfileCompat.getName(player.getGameProfile()));
+
+                    PeekMod.LOGGER.debug("Successfully performed crash recovery for player {}", ProfileCompat.getName(player.getGameProfile()));
                     return PeekConstants.Result.success(Text.translatable("peek.message.crash_recovery_completed").getString());
-                    
+
                 } catch (Exception restoreException) {
-                    PeekMod.LOGGER.error("Failed to restore state for player {} - keeping saved state for retry", 
-                        player.getGameProfile().getName(), restoreException);
-                    
+                    PeekMod.LOGGER.error("Failed to restore state for player {} - keeping saved state for retry",
+                        ProfileCompat.getName(player.getGameProfile()), restoreException);
+
                     // DO NOT clear the saved state - keep it for potential retry
-                    return PeekConstants.Result.failure("State restoration failed: " + restoreException.getMessage() + 
+                    return PeekConstants.Result.failure("State restoration failed: " + restoreException.getMessage() +
                         " (saved state preserved for retry)");
                 }
             }
-            
-            PeekMod.LOGGER.debug("No saved state found for player {} - no crash recovery needed", player.getGameProfile().getName());
+
+            PeekMod.LOGGER.debug("No saved state found for player {} - no crash recovery needed", ProfileCompat.getName(player.getGameProfile()));
             return PeekConstants.Result.success(Text.translatable("peek.message.no_crash_recovery_needed").getString());
-            
+
         } catch (Exception e) {
-            PeekMod.LOGGER.error("Error during crash recovery for {}", player.getGameProfile().getName(), e);
-            
+            PeekMod.LOGGER.error("Error during crash recovery for {}", ProfileCompat.getName(player.getGameProfile()), e);
+
             // Try to clear the problematic saved state
             try {
                 PlayerPeekData playerData = com.peek.data.peek.PlayerPeekData.getOrCreate(player);
                 if (playerData.hasSavedState()) {
                     playerData = playerData.withSavedState(null);
                     PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, playerData);
-                    PeekMod.LOGGER.info("Cleared problematic saved state for player {}", player.getGameProfile().getName());
+                    PeekMod.LOGGER.info("Cleared problematic saved state for player {}", ProfileCompat.getName(player.getGameProfile()));
                 }
             } catch (Exception clearException) {
-                PeekMod.LOGGER.error("Failed to clear problematic saved state for {}", player.getGameProfile().getName(), clearException);
+                PeekMod.LOGGER.error("Failed to clear problematic saved state for {}", ProfileCompat.getName(player.getGameProfile()), clearException);
             }
             
             return PeekConstants.Result.failure(Text.translatable("peek.message.crash_recovery_failed").getString());

@@ -6,6 +6,7 @@ import com.peek.data.peek.PlayerPeekData;
 import com.peek.manager.constants.RequestConstants;
 import com.peek.utils.MessageBuilder;
 import com.peek.utils.SoundManager;
+import com.peek.utils.compat.ProfileCompat;
 import com.peek.utils.compat.TextEventCompat;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.MutableText;
@@ -23,18 +24,18 @@ public class NotificationHandler {
     public void sendRequestNotification(ServerPlayerEntity requester, ServerPlayerEntity target, PeekRequest request,
                                       AutoAcceptCallback autoAcceptCallback) {
         // Send to requester
-        MessageBuilder.sendChat(requester, "peek.request_sent", target.getGameProfile().getName());
-        
+        MessageBuilder.sendChat(requester, "peek.request_sent", ProfileCompat.getName(target.getGameProfile()));
+
         // Check if target has auto-accept enabled or requester is whitelisted
         PlayerPeekData targetData = com.peek.data.peek.PlayerPeekData.getOrCreate(target);
         boolean hasAutoAccept = targetData.autoAccept();
         boolean isWhitelisted = targetData.isWhitelisted(requester.getUuid());
         boolean shouldAutoAccept = hasAutoAccept || isWhitelisted;
-        
+
         // Don't use overlay for interactive messages with buttons
-        
+
         // Send request message with interactive buttons in chat
-        String requesterName = requester.getGameProfile().getName();
+        String requesterName = ProfileCompat.getName(requester.getGameProfile());
         
         // Create the complete message with text and buttons
         MutableText requestMessage = Text.translatable("peek.request_received", requester.getDisplayName());

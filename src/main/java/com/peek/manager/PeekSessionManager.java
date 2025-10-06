@@ -14,6 +14,8 @@ import com.peek.manager.session.SessionCreationContext;
 import com.peek.manager.session.SessionUpdateHandler;
 import com.peek.manager.session.TeleportationManager;
 import com.peek.utils.*;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.permissions.Permissions;
 import eu.pb4.playerdata.api.PlayerDataApi;
 import net.minecraft.server.MinecraftServer;
@@ -110,12 +112,12 @@ public class PeekSessionManager extends BaseManager {
             return PeekConstants.Result.success(context.getCreatedSession());
             
         } catch (TeleportationException e) {
-            PeekConstants.Result<String> errorResult = ExceptionHandler.handleTeleportationException(e, "startPeekSession", 
-                context.getPeeker().getGameProfile().getName(), context.getTarget().getGameProfile().getName());
+            PeekConstants.Result<String> errorResult = ExceptionHandler.handleTeleportationException(e, "startPeekSession",
+                ProfileCompat.getName(context.getPeeker().getGameProfile()), ProfileCompat.getName(context.getTarget().getGameProfile()));
             return PeekConstants.Result.failure(errorResult.getError());
         } catch (Exception e) {
             PeekConstants.Result<String> errorResult = ExceptionHandler.handleSessionException(e, "startPeekSession",
-                context.getPeeker().getGameProfile().getName(), context.getTarget().getGameProfile().getName());
+                ProfileCompat.getName(context.getPeeker().getGameProfile()), ProfileCompat.getName(context.getTarget().getGameProfile()));
             return PeekConstants.Result.failure(errorResult.getError());
         }
     }
@@ -206,11 +208,11 @@ public class PeekSessionManager extends BaseManager {
         context.setOriginalWorldId(originalWorldId);
         
         if (context.getExistingOriginalState() != null) {
-            PeekMod.LOGGER.debug("Switching peek for player {}: preserving existing original state", 
-                context.getPeeker().getGameProfile().getName());
+            PeekMod.LOGGER.debug("Switching peek for player {}: preserving existing original state",
+                ProfileCompat.getName(context.getPeeker().getGameProfile()));
         } else {
-            PeekMod.LOGGER.debug("Starting new peek for player {}: saving original state for crash recovery", 
-                context.getPeeker().getGameProfile().getName());
+            PeekMod.LOGGER.debug("Starting new peek for player {}: saving original state for crash recovery",
+                ProfileCompat.getName(context.getPeeker().getGameProfile()));
             
             // The originalState is already captured by determineOriginalState() above
             // We need to save this ORIGINAL state (not current state) to persistent storage
@@ -221,8 +223,8 @@ public class PeekSessionManager extends BaseManager {
                 return PeekConstants.Result.failure("Failed to save original state for crash recovery: " + saveResult.getError());
             }
             
-            PeekMod.LOGGER.debug("Successfully saved original state for crash recovery for player {}", 
-                context.getPeeker().getGameProfile().getName());
+            PeekMod.LOGGER.debug("Successfully saved original state for crash recovery for player {}",
+                ProfileCompat.getName(context.getPeeker().getGameProfile()));
         }
         
         return PeekConstants.Result.success("Player state prepared");
@@ -240,8 +242,8 @@ public class PeekSessionManager extends BaseManager {
             playerData = playerData.withSavedState(originalState);
             PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, playerData);
             
-            PeekMod.LOGGER.debug("Saved original state to PlayerDataAPI for player {} - pos={}, gamemode={}", 
-                player.getGameProfile().getName(), originalState.position(), originalState.gameMode());
+            PeekMod.LOGGER.debug("Saved original state to PlayerDataAPI for player {} - pos={}, gamemode={}",
+                ProfileCompat.getName(player.getGameProfile()), originalState.position(), originalState.gameMode());
             
             // PlayerDataAPI will automatically save this data for online players
             
@@ -257,8 +259,8 @@ public class PeekSessionManager extends BaseManager {
             return PeekConstants.Result.success("Original state saved");
             
         } catch (Exception e) {
-            PeekMod.LOGGER.error("Error saving original state to persistent storage for {}", 
-                player.getGameProfile().getName(), e);
+            PeekMod.LOGGER.error("Error saving original state to persistent storage for {}",
+                ProfileCompat.getName(player.getGameProfile()), e);
             return PeekConstants.Result.failure("Failed to save state: " + e.getMessage());
         }
     }
@@ -272,8 +274,8 @@ public class PeekSessionManager extends BaseManager {
         // Create session
         PeekSession session = new PeekSession(
             context.getPeekerId(), context.getTargetId(),
-            context.getPeeker().getGameProfile().getName(),
-            context.getTarget().getGameProfile().getName(),
+            ProfileCompat.getName(context.getPeeker().getGameProfile()),
+            ProfileCompat.getName(context.getTarget().getGameProfile()),
             originalState,
             context.getOriginalWorldId()
         );
@@ -312,23 +314,23 @@ public class PeekSessionManager extends BaseManager {
         
         try {
             // Execute teleportation
-            PeekMod.LOGGER.debug("Starting teleportation for {} to target {}", 
-                peeker.getGameProfile().getName(), target.getGameProfile().getName());
-            
+            PeekMod.LOGGER.debug("Starting teleportation for {} to target {}",
+                ProfileCompat.getName(peeker.getGameProfile()), ProfileCompat.getName(target.getGameProfile()));
+
             teleportationManager.teleportPeekerToTarget(peeker, target);
-            
+
             // Update session with initial target position
-            Vec3d targetPos = target.getPos();
+            Vec3d targetPos = ServerPlayerCompat.getPos(target);
             session.updateTargetPosition(targetPos, UUID.nameUUIDFromBytes(
-                target.getWorld().getRegistryKey().getValue().toString().getBytes()
+                ServerPlayerCompat.getWorld(target).getRegistryKey().getValue().toString().getBytes()
             ));
-            
-            PeekMod.LOGGER.debug("Session initialized successfully for {} peeking {}", 
-                peeker.getGameProfile().getName(), target.getGameProfile().getName());
+
+            PeekMod.LOGGER.debug("Session initialized successfully for {} peeking {}",
+                ProfileCompat.getName(peeker.getGameProfile()), ProfileCompat.getName(target.getGameProfile()));
                 
         } catch (Exception teleportError) {
-            PeekMod.LOGGER.error("Teleportation failed for {} to {}: {}", 
-                peeker.getGameProfile().getName(), target.getGameProfile().getName(), 
+            PeekMod.LOGGER.error("Teleportation failed for {} to {}: {}",
+                ProfileCompat.getName(peeker.getGameProfile()), ProfileCompat.getName(target.getGameProfile()),
                 teleportError.getMessage(), teleportError);
             
             // Rollback on teleport failure
@@ -351,7 +353,7 @@ public class PeekSessionManager extends BaseManager {
         // Update command trees and effects
         com.peek.utils.CommandUtils.updateCommandTree(peeker);
         com.peek.utils.CommandUtils.updateCommandTree(target);
-        LoggingHelper.logSessionOperation("Started", peeker.getGameProfile().getName(), target.getGameProfile().getName());
+        LoggingHelper.logSessionOperation("Started", ProfileCompat.getName(peeker.getGameProfile()), ProfileCompat.getName(target.getGameProfile()));
         ParticleEffectManager.addPlayer(context.getPeekerId(), context.getTargetId());
         
         return PeekConstants.Result.success("Session finalized");
@@ -364,9 +366,9 @@ public class PeekSessionManager extends BaseManager {
         long maxDuration = ModConfigManager.getMaxSessionDuration();
         if (maxDuration > 0 && !ValidationUtils.canBypass(peeker, Permissions.Bypass.TIME_LIMIT, 2)) {
             int timeoutTicks = (int) (maxDuration * PeekConstants.DEFAULT_STATIC_TICKS);
-            PeekMod.LOGGER.debug("Scheduled session timeout for {} after {} ticks ({} seconds)", 
-                peeker.getGameProfile().getName(), timeoutTicks, maxDuration);
-            tickTaskManager.addTask(session.getId(), TASK_TYPE_SESSION_TIMEOUT, timeoutTicks, 
+            PeekMod.LOGGER.debug("Scheduled session timeout for {} after {} ticks ({} seconds)",
+                ProfileCompat.getName(peeker.getGameProfile()), timeoutTicks, maxDuration);
+            tickTaskManager.addTask(session.getId(), TASK_TYPE_SESSION_TIMEOUT, timeoutTicks,
                 task -> stopPeekSession(peeker.getUuid(), false, getCurrentServer()));
         }
     }
@@ -422,7 +424,7 @@ public class PeekSessionManager extends BaseManager {
             }
             if (server != null) {
                 ServerPlayerEntity peeker = server.getPlayerManager().getPlayer(peekerId);
-                if (peeker != null && peeker.getServer() != null) {
+                if (peeker != null && ServerPlayerCompat.getServer(peeker) != null) {
                     PlayerState originalState = session.getOriginalPeekerState();
                     var registryManager = com.peek.utils.compat.PlayerCompat.getRegistryManager(peeker);
                     if (registryManager != null) {
@@ -606,28 +608,28 @@ public class PeekSessionManager extends BaseManager {
                 // Re-verify players are still valid before teleporting
                 ServerPlayerEntity peeker = server.getPlayerManager().getPlayer(task.peekerId);
                 ServerPlayerEntity target = server.getPlayerManager().getPlayer(task.targetId);
-                
+
                 if (peeker == null || target == null) {
                     PeekMod.LOGGER.warn("Player became null during delayed teleport, ending session");
                     stopPeekSession(task.peekerId, false);
                     continue;
                 }
-                
+
                 // Check if session is still active
                 PeekSession currentSession = activeSessions.get(task.sessionId);
                 if (currentSession == null || !currentSession.isActive()) {
                     PeekMod.LOGGER.debug("Session no longer active during delayed teleport");
                     continue;
                 }
-                
+
                 PeekMod.LOGGER.debug("Executing delayed teleport to follow target {} to new dimension", task.targetName);
                 teleportationManager.teleportPeekerToTarget(peeker, target);
-                
+
                 // Update session's world ID to reflect the successful dimension change
                 UUID newWorldId = UUID.nameUUIDFromBytes(
-                    target.getWorld().getRegistryKey().getValue().toString().getBytes()
+                    ServerPlayerCompat.getWorld(target).getRegistryKey().getValue().toString().getBytes()
                 );
-                currentSession.updateTargetPosition(target.getPos(), newWorldId);
+                currentSession.updateTargetPosition(ServerPlayerCompat.getPos(target), newWorldId);
                 
                 PeekMod.LOGGER.debug("Updated session world ID after successful dimension follow");
                 
@@ -954,16 +956,16 @@ public class PeekSessionManager extends BaseManager {
             // Only notify if this was the only peeker, or explain that peeker switched
             List<PeekSession> otherSessions = getSessionsTargeting(previousSession.getTargetId());
             if (otherSessions.size() <= 1) { // Only the current session which will be stopped
-                Text message = Text.translatable("peek.message.peek_switch_away", 
-                    previousSession.getPeekerName(), newTarget.getGameProfile().getName())
+                Text message = Text.translatable("peek.message.peek_switch_away",
+                    previousSession.getPeekerName(), ProfileCompat.getName(newTarget.getGameProfile()))
                     .formatted(Formatting.GRAY);
                 previousTarget.sendMessage(message, false);
             }
-            
-            PeekMod.LOGGER.debug("Notified {} that {} switched peek to {}", 
-                previousTarget.getGameProfile().getName(), 
-                previousSession.getPeekerName(), 
-                newTarget.getGameProfile().getName());
+
+            PeekMod.LOGGER.debug("Notified {} that {} switched peek to {}",
+                ProfileCompat.getName(previousTarget.getGameProfile()),
+                previousSession.getPeekerName(),
+                ProfileCompat.getName(newTarget.getGameProfile()));
         }
     }
 
@@ -1035,10 +1037,10 @@ public class PeekSessionManager extends BaseManager {
                                         }
                                         
                                         restoredCount++;
-                                        PeekMod.LOGGER.info("Restored player {} during emergency shutdown", 
-                                            peeker.getGameProfile().getName());
+                                        PeekMod.LOGGER.info("Restored player {} during emergency shutdown",
+                                            ProfileCompat.getName(peeker.getGameProfile()));
                                     } else {
-                                        PeekMod.LOGGER.warn("Cannot restore player {} - registry manager not available", peeker.getGameProfile().getName());
+                                        PeekMod.LOGGER.warn("Cannot restore player {} - registry manager not available", ProfileCompat.getName(peeker.getGameProfile()));
                                     }
                                 } else {
                                     PeekMod.LOGGER.warn("No original state found for peeker {} during emergency shutdown", 

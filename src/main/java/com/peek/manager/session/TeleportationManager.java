@@ -7,6 +7,8 @@ import com.peek.manager.exceptions.TeleportationException;
 import com.peek.utils.LoggingHelper;
 import com.peek.utils.MessageBuilder;
 import com.peek.utils.SoundManager;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -52,23 +54,23 @@ public class TeleportationManager {
      */
     public void teleportPeekerToTarget(ServerPlayerEntity peeker, ServerPlayerEntity target) {
         try {
-            Vec3d targetPos = target.getPos();
-            Vec3d peekerPos = peeker.getPos();
-            
-            PeekMod.LOGGER.debug("Teleporting {} from {} to target {} at {}", 
-                peeker.getGameProfile().getName(), peekerPos, target.getGameProfile().getName(), targetPos);
-            
+            Vec3d targetPos = ServerPlayerCompat.getPos(target);
+            Vec3d peekerPos = ServerPlayerCompat.getPos(peeker);
+
+            PeekMod.LOGGER.debug("Teleporting {} from {} to target {} at {}",
+                ProfileCompat.getName(peeker.getGameProfile()), peekerPos, ProfileCompat.getName(target.getGameProfile()), targetPos);
+
             // Play teleport sound before teleportation
             SoundManager.playTeleportToTargetSound(peeker);
-            
-            LoggingHelper.logTeleportOperation("Executing", peeker.getGameProfile().getName(), targetPos);
-            
+
+            LoggingHelper.logTeleportOperation("Executing", ProfileCompat.getName(peeker.getGameProfile()), targetPos);
+
             // Cross-dimensional or same-world teleport
-            if (peeker.getWorld() != target.getWorld()) {
+            if (ServerPlayerCompat.getWorld(peeker) != ServerPlayerCompat.getWorld(target)) {
                 // Cross-dimensional teleport
-                PeekMod.LOGGER.debug("Cross-dimension spectator follow from {} to {}", 
-                    peeker.getWorld().getRegistryKey().getValue(),
-                    target.getWorld().getRegistryKey().getValue());
+                PeekMod.LOGGER.debug("Cross-dimension spectator follow from {} to {}",
+                    ServerPlayerCompat.getWorld(peeker).getRegistryKey().getValue(),
+                    ServerPlayerCompat.getWorld(target).getRegistryKey().getValue());
 
                 TeleportTarget teleportTarget = new TeleportTarget(com.peek.utils.compat.PlayerCompat.getServerWorld(target), 
                     targetPos, // Use exact target position for spectator
@@ -89,15 +91,15 @@ public class TeleportationManager {
             }
             
             // Verify teleportation success
-            Vec3d newPeekerPos = peeker.getPos();
-            Vec3d currentTargetPos = target.getPos();
+            Vec3d newPeekerPos = ServerPlayerCompat.getPos(peeker);
+            Vec3d currentTargetPos = ServerPlayerCompat.getPos(target);
             double distance = newPeekerPos.distanceTo(currentTargetPos);
-            
+
             if (distance > 5.0) {
                 PeekMod.LOGGER.warn("Teleportation verification failed - distance to target is {} blocks", distance);
             } else {
-                PeekMod.LOGGER.debug("Teleportation successful - peeker {} at distance {} from target {}", 
-                    peeker.getGameProfile().getName(), distance, target.getGameProfile().getName());
+                PeekMod.LOGGER.debug("Teleportation successful - peeker {} at distance {} from target {}",
+                    ProfileCompat.getName(peeker.getGameProfile()), distance, ProfileCompat.getName(target.getGameProfile()));
             }
                 
         } catch (Exception e) {
@@ -121,17 +123,17 @@ public class TeleportationManager {
             
             Text message = MessageBuilder.warning("peek.message.teleported_back_distance");
             peeker.sendMessage(message, false);
-            
-            PeekMod.LOGGER.debug("Teleported peeker {} back to target due to distance exceeded", 
-                peeker.getGameProfile().getName());
+
+            PeekMod.LOGGER.debug("Teleported peeker {} back to target due to distance exceeded",
+                ProfileCompat.getName(peeker.getGameProfile()));
             return false; // Continue session after teleporting back
         } else if (ModConfigManager.shouldEndPeekOnDistanceExceeded()) {
             // End the peek session
             Text message = MessageBuilder.message("peek.message.ended_distance");
             peeker.sendMessage(message, false);
-            
-            PeekMod.LOGGER.debug("Ending peek session due to peeker {} exceeding distance limit", 
-                peeker.getGameProfile().getName());
+
+            PeekMod.LOGGER.debug("Ending peek session due to peeker {} exceeding distance limit",
+                ProfileCompat.getName(peeker.getGameProfile()));
             return true; // End session
         }
         return false; // Default: continue session

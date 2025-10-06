@@ -4,6 +4,7 @@ import com.peek.PeekMod;
 import com.peek.config.ModConfigManager;
 import com.peek.data.peek.PeekSession;
 import com.peek.utils.MessageBuilder;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -54,10 +55,10 @@ public class SessionUpdateHandler {
             }
             
             // Update positions
-            Vec3d targetPos = target.getPos();
-            Vec3d peekerPos = peeker.getPos();
+            Vec3d targetPos = ServerPlayerCompat.getPos(target);
+            Vec3d peekerPos = ServerPlayerCompat.getPos(peeker);
             UUID targetWorldId = UUID.nameUUIDFromBytes(
-                target.getWorld().getRegistryKey().getValue().toString().getBytes()
+                ServerPlayerCompat.getWorld(target).getRegistryKey().getValue().toString().getBytes()
             );
             UUID currentTargetWorldId = session.getCurrentWorldId();
             
@@ -74,7 +75,7 @@ public class SessionUpdateHandler {
             session.updatePeekerPosition(peekerPos);
             
             // Only check distance if players are in the same dimension
-            if (peeker.getWorld() != target.getWorld()) {
+            if (ServerPlayerCompat.getWorld(peeker) != ServerPlayerCompat.getWorld(target)) {
                 return true; // Different dimensions, skip distance checks
             }
             
@@ -148,7 +149,7 @@ public class SessionUpdateHandler {
         // Skip this check for cross-dimensional scenarios
         UUID originalWorldId = session.getOriginalWorldId();
         UUID currentTargetWorldId = UUID.nameUUIDFromBytes(
-            target.getWorld().getRegistryKey().getValue().toString().getBytes()
+            ServerPlayerCompat.getWorld(target).getRegistryKey().getValue().toString().getBytes()
         );
         
         boolean isCrossDimensional = !originalWorldId.equals(currentTargetWorldId);

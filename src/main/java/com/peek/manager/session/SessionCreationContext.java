@@ -2,6 +2,7 @@ package com.peek.manager.session;
 
 import com.peek.data.peek.PeekSession;
 import com.peek.data.peek.PlayerState;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.Objects;
@@ -84,7 +85,7 @@ public class SessionCreationContext {
             return existingOriginalState.worldId();
         } else {
             return UUID.nameUUIDFromBytes(
-                peeker.getWorld().getRegistryKey().getValue().toString().getBytes()
+                ServerPlayerCompat.getWorld(peeker).getRegistryKey().getValue().toString().getBytes()
             );
         }
     }

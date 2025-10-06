@@ -14,6 +14,8 @@ import com.peek.utils.TickTaskManager;
 import com.peek.utils.LoggingHelper;
 import com.peek.manager.request.NotificationHandler;
 import com.peek.manager.constants.RequestConstants;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -98,9 +100,9 @@ public class PeekRequestManager extends BaseManager {
             // If requester is being peeked, stop those sessions first
             PeekSessionManager sessionManager = ManagerRegistry.getInstance().getManager(PeekSessionManager.class);
             if (sessionManager.isPlayerBeingPeeked(requesterId)) {
-                sessionManager.stopAllSessionsInvolving(requesterId, requester.getServer());
-                PeekMod.LOGGER.info("Cleared sessions involving player {} who wants to peek someone else", 
-                    requester.getGameProfile().getName());
+                sessionManager.stopAllSessionsInvolving(requesterId, ServerPlayerCompat.getServer(requester));
+                PeekMod.LOGGER.info("Cleared sessions involving player {} who wants to peek someone else",
+                    ProfileCompat.getName(requester.getGameProfile()));
             }
             
             // If target has pending requests (waiting to confirm), don't allow new requests
@@ -114,8 +116,8 @@ public class PeekRequestManager extends BaseManager {
             // Create request
             PeekRequest request = new PeekRequest(
                 requesterId, targetId,
-                requester.getGameProfile().getName(),
-                target.getGameProfile().getName(),
+                ProfileCompat.getName(requester.getGameProfile()),
+                ProfileCompat.getName(target.getGameProfile()),
                 ModConfigManager.getRequestTimeoutSeconds()
             );
             
@@ -139,8 +141,8 @@ public class PeekRequestManager extends BaseManager {
             // Set cooldown
             cooldownManager.setCooldown(requesterId, ModConfigManager.getCooldownSeconds());
             
-            LoggingHelper.logRequestOperation("Sent", 
-                requester.getGameProfile().getName(), target.getGameProfile().getName());
+            LoggingHelper.logRequestOperation("Sent",
+                ProfileCompat.getName(requester.getGameProfile()), ProfileCompat.getName(target.getGameProfile()));
             
             // Update command trees to show new options
             CommandUtils.updateCommandTreesForRequest(requester, target);
@@ -172,14 +174,14 @@ public class PeekRequestManager extends BaseManager {
         
         // Re-validate session-related preconditions before accepting
         // Note: This is different from sendRequest validation - this checks current session states
-        PeekConstants.Result<String> validationResult = validateSessionPreconditions(player.getServer(), request);
+        PeekConstants.Result<String> validationResult = validateSessionPreconditions(ServerPlayerCompat.getServer(player), request);
         if (!validationResult.isSuccess()) {
             removeRequest(requestId);
             return PeekConstants.Result.failure(validationResult.getError());
         }
-        
+
         // Start peek session first before modifying request state
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = ServerPlayerCompat.getServer(player);
         if (server != null) {
             ServerPlayerEntity requester = server.getPlayerManager().getPlayer(request.getRequesterId());
             if (requester != null) {
@@ -231,7 +233,7 @@ public class PeekRequestManager extends BaseManager {
         removeRequest(requestId);
         
         // Notify both players and get requester for command tree update
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = ServerPlayerCompat.getServer(player);
         ServerPlayerEntity requester = null;
         if (server != null) {
             requester = server.getPlayerManager().getPlayer(request.getRequesterId());
@@ -270,7 +272,7 @@ public class PeekRequestManager extends BaseManager {
         removeRequest(requestId);
         
         // Notify both players
-        MinecraftServer server = requester.getServer();
+        MinecraftServer server = ServerPlayerCompat.getServer(requester);
         ServerPlayerEntity target = null;
         if (server != null) {
             target = server.getPlayerManager().getPlayer(request.getTargetId());
