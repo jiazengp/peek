@@ -2,6 +2,7 @@ package com.peek.utils;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.peek.PeekMod;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
@@ -134,7 +135,7 @@ public class CommandUtils {
      */
     public static void updateCommandTree(ServerPlayerEntity player) {
         try {
-            player.getServer().getPlayerManager().sendCommandTree(player);
+            ServerPlayerCompat.getServer(player).getPlayerManager().sendCommandTree(player);
         } catch (Exception e) {
             // Ignore errors - command tree update is not critical
         }

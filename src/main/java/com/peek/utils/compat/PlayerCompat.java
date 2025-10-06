@@ -17,11 +17,7 @@ public class PlayerCompat {
      * Uses the appropriate method for each version.
      */
     public static ServerWorld getServerWorld(ServerPlayerEntity player) {
-        #if MC_VER >= 1216
-        return player.getWorld();
-        #else
-        return player.getServerWorld();
-        #endif
+        return ServerPlayerCompat.getWorld(player);
     }
     
     /**
@@ -59,12 +55,12 @@ public class PlayerCompat {
         if (player == null) {
             return null;
         }
-        
-        MinecraftServer server = player.getServer();
+
+        MinecraftServer server = ServerPlayerCompat.getServer(player);
         if (server == null) {
             return null;
         }
-        
+
         return server.getRegistryManager();
     }
     

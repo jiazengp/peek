@@ -3,6 +3,8 @@ package com.peek.utils;
 import com.peek.PeekMod;
 import com.peek.config.ModConfigManager;
 import com.peek.manager.constants.GameConstants;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
@@ -158,7 +160,7 @@ public class ParticleEffectManager {
             }
             
             // Get peeker's current position
-            Vec3d peekerPos = peeker.getPos();
+            Vec3d peekerPos = ServerPlayerCompat.getPos(peeker);
             
             // Create particle effect
             ParticleEffect particleEffect = createParticleEffect();
@@ -208,10 +210,10 @@ public class ParticleEffectManager {
                 }
             }
             
-            PeekMod.LOGGER.debug("Spawned {} particles around peeker {}", particleCount, peeker.getGameProfile().getName());
-            
+            PeekMod.LOGGER.debug("Spawned {} particles around peeker {}", particleCount, ProfileCompat.getName(peeker.getGameProfile()));
+
         } catch (Exception e) {
-            PeekMod.LOGGER.error("Failed to spawn particle effects for player {}: {}", peeker.getGameProfile().getName(), e.getMessage());
+            PeekMod.LOGGER.error("Failed to spawn particle effects for player {}: {}", ProfileCompat.getName(peeker.getGameProfile()), e.getMessage());
         }
     }
     
@@ -287,7 +289,7 @@ public class ParticleEffectManager {
             // Use the compatible spawnParticles method
             com.peek.utils.compat.ParticleCompat.spawnParticles(world, player, particle, pos.x, pos.y, pos.z, 1, velocityX, velocityY, velocityZ, 0);
         } catch (Exception e) {
-            PeekMod.LOGGER.debug("Failed to spawn particle for player {}: {}", player.getGameProfile().getName(), e.getMessage());
+            PeekMod.LOGGER.debug("Failed to spawn particle for player {}: {}", ProfileCompat.getName(player.getGameProfile()), e.getMessage());
         }
     }
     
@@ -305,7 +307,7 @@ public class ParticleEffectManager {
             } else {
                 // Spawn only for players within view distance
                 for (ServerPlayerEntity player : world.getPlayers()) {
-                    double distance = player.getPos().distanceTo(centerPos);
+                    double distance = ServerPlayerCompat.getPos(player).distanceTo(centerPos);
                     if (distance <= maxViewDistance) {
                         spawnParticleForPlayer(player, particle, pos, velocityX, velocityY, velocityZ);
                     }

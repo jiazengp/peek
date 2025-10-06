@@ -8,6 +8,7 @@ import com.peek.placeholders.Placeholders;
 import com.peek.utils.*;
 import com.peek.manager.constants.PeekConstants;
 import com.peek.utils.ParticleEffectManager;
+import com.peek.utils.compat.ProfileCompat;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -108,7 +109,7 @@ public class PeekMod implements ModInitializer {
 		// Handle player connections for crash recovery
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			ServerPlayerEntity player = handler.getPlayer();
-			LOGGER.debug("Player {} joined server - scheduling crash recovery check", player.getGameProfile().getName());
+			LOGGER.debug("Player {} joined server - scheduling crash recovery check", ProfileCompat.getName(player.getGameProfile()));
 			
 			// Schedule crash recovery check with proper delay using TickTaskManager
 			try {
@@ -122,19 +123,19 @@ public class PeekMod implements ModInitializer {
 						if (result.isSuccess()) {
 							// Only log if actual recovery happened (not "no recovery needed")
 							if (result.getValue().contains("completed")) {
-								LOGGER.info("Crash recovery completed for player {}", player.getGameProfile().getName());
+								LOGGER.info("Crash recovery completed for player {}", ProfileCompat.getName(player.getGameProfile()));
 							} else {
-								LOGGER.debug("Crash recovery check for player {}: {}", player.getGameProfile().getName(), result.getValue());
+								LOGGER.debug("Crash recovery check for player {}: {}", ProfileCompat.getName(player.getGameProfile()), result.getValue());
 							}
 						} else {
-							LOGGER.warn("Crash recovery failed for player {}: {}", player.getGameProfile().getName(), result.getError());
+							LOGGER.warn("Crash recovery failed for player {}: {}", ProfileCompat.getName(player.getGameProfile()), result.getError());
 						}
 					} catch (Exception e) {
-						LOGGER.error("Error during crash recovery check for {}", player.getGameProfile().getName(), e);
+						LOGGER.error("Error during crash recovery check for {}", ProfileCompat.getName(player.getGameProfile()), e);
 					}
 				}, 3); // 3-tick delay to ensure player is fully loaded
 			} catch (Exception e) {
-				LOGGER.error("Error scheduling crash recovery for {}", player.getGameProfile().getName(), e);
+				LOGGER.error("Error scheduling crash recovery for {}", ProfileCompat.getName(player.getGameProfile()), e);
 			}
 		});
 
@@ -144,12 +145,12 @@ public class PeekMod implements ModInitializer {
 			try {
 				// Clean up particle effects for this player
 				ParticleEffectManager.cleanupPlayerParticles(player.getUuid());
-				
+
 				// Stop any active sessions involving this player, passing server for offline state saving
 				ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopAllSessionsInvolving(player.getUuid(), server);
-				LOGGER.debug("Cleaned up sessions and particle effects for disconnecting player {}", player.getGameProfile().getName());
+				LOGGER.debug("Cleaned up sessions and particle effects for disconnecting player {}", ProfileCompat.getName(player.getGameProfile()));
 			} catch (Exception e) {
-				LOGGER.error("Error cleaning up sessions for {}", player.getGameProfile().getName(), e);
+				LOGGER.error("Error cleaning up sessions for {}", ProfileCompat.getName(player.getGameProfile()), e);
 			}
 		});
 
@@ -159,12 +160,12 @@ public class PeekMod implements ModInitializer {
 				try {
 					// Clean up particle effects for this player
 					ParticleEffectManager.cleanupPlayerParticles(player.getUuid());
-					
+
 					// Stop any active sessions involving this player when they die
 					ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopAllSessionsInvolving(player.getUuid());
-					LOGGER.debug("Cleaned up sessions and particle effects for dead player {}", player.getGameProfile().getName());
+					LOGGER.debug("Cleaned up sessions and particle effects for dead player {}", ProfileCompat.getName(player.getGameProfile()));
 				} catch (Exception e) {
-					LOGGER.error("Error cleaning up sessions for dead player {}", player.getGameProfile().getName(), e);
+					LOGGER.error("Error cleaning up sessions for dead player {}", ProfileCompat.getName(player.getGameProfile()), e);
 				}
 			}
 		});

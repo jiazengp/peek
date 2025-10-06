@@ -3,6 +3,8 @@ package com.peek.data.peek;
 // Using Mojang Codec for robust serialization of complex structures
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -48,9 +50,9 @@ public record PlayerState(
      */
     public static PlayerState capture(ServerPlayerEntity player, RegistryWrapper.WrapperLookup registryLookup) {
         // Capture position and world
-        Vec3d position = player.getPos();
-        UUID worldId = player.getWorld().getRegistryKey().getValue().hashCode() != 0 ? 
-            UUID.nameUUIDFromBytes(player.getWorld().getRegistryKey().getValue().toString().getBytes()) : 
+        Vec3d position = ServerPlayerCompat.getPos(player);
+        UUID worldId = ServerPlayerCompat.getWorld(player).getRegistryKey().getValue().hashCode() != 0 ?
+            UUID.nameUUIDFromBytes(ServerPlayerCompat.getWorld(player).getRegistryKey().getValue().toString().getBytes()) :
             UUID.randomUUID();
         
         // Capture game mode
@@ -127,7 +129,7 @@ public record PlayerState(
             
         } catch (Exception e) {
             // If any part of restoration fails, log it and re-throw
-            com.peek.PeekMod.LOGGER.error("Failed to restore state for player {}", player.getGameProfile().getName(), e);
+            com.peek.PeekMod.LOGGER.error("Failed to restore state for player {}", ProfileCompat.getName(player.getGameProfile()), e);
             throw e; // Re-throw to let caller handle the failure
         }
     }
@@ -139,13 +141,13 @@ public record PlayerState(
         try {
             // Find the target world
             ServerWorld targetWorld = null;
-            
+
             // Try to find the world by comparing world registry key hash
-            if (player.getServer() == null) {
+            if (ServerPlayerCompat.getServer(player) == null) {
                 return;
             }
 
-            for (ServerWorld world : player.getServer().getWorlds()) {
+            for (ServerWorld world : ServerPlayerCompat.getServer(player).getWorlds()) {
                 UUID currentWorldId = UUID.nameUUIDFromBytes(
                     world.getRegistryKey().getValue().toString().getBytes()
                 );
@@ -166,8 +168,8 @@ public record PlayerState(
         } catch (Exception e) {
             // If teleportation fails, log the error but don't crash
             // The player will remain at their current position
-            com.peek.PeekMod.LOGGER.error("Failed to restore position for player {} to world {} at {}", 
-                player.getGameProfile().getName(), worldId, position, e);
+            com.peek.PeekMod.LOGGER.error("Failed to restore position for player {} to world {} at {}",
+                ProfileCompat.getName(player.getGameProfile()), worldId, position, e);
             throw new RuntimeException("Position restoration failed", e);
         }
     }

@@ -2,6 +2,8 @@ package com.peek.utils;
 
 import com.peek.PeekMod;
 import com.peek.config.ModConfigManager;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -113,16 +115,16 @@ public class SoundManager {
                     Registries.SOUND_EVENT.getEntry(soundEvent),
                     SoundCategory.PLAYERS,
                     player.getX(), player.getY(), player.getZ(),
-                    volume, pitch, player.getWorld().random.nextLong()
+                    volume, pitch, ServerPlayerCompat.getWorld(player).random.nextLong()
                 )
             );
-            
-            PeekMod.LOGGER.debug("Played private sound {} to {} (volume: {}, pitch: {})", 
-                soundId, player.getGameProfile().getName(), volume, pitch);
-                
+
+            PeekMod.LOGGER.debug("Played private sound {} to {} (volume: {}, pitch: {})",
+                soundId, ProfileCompat.getName(player.getGameProfile()), volume, pitch);
+
         } catch (Exception e) {
-            PeekMod.LOGGER.error("Failed to play private sound {} to {}: {}", 
-                soundId, player.getGameProfile().getName(), e.getMessage());
+            PeekMod.LOGGER.error("Failed to play private sound {} to {}: {}",
+                soundId, ProfileCompat.getName(player.getGameProfile()), e.getMessage());
         }
     }
     
@@ -148,15 +150,15 @@ public class SoundManager {
             pitch = Math.max(0.1f, Math.min(2.0f, pitch));
             
             // Play sound to the world at player's position (public)
-            player.getWorld().playSound(null, player.getX(), player.getY(), player.getZ(), 
+            ServerPlayerCompat.getWorld(player).playSound(null, player.getX(), player.getY(), player.getZ(),
                 soundEvent, SoundCategory.PLAYERS, volume, pitch);
-            
-            PeekMod.LOGGER.debug("Played world sound {} at {} (volume: {}, pitch: {})", 
-                soundId, player.getGameProfile().getName(), volume, pitch);
-                
+
+            PeekMod.LOGGER.debug("Played world sound {} at {} (volume: {}, pitch: {})",
+                soundId, ProfileCompat.getName(player.getGameProfile()), volume, pitch);
+
         } catch (Exception e) {
-            PeekMod.LOGGER.error("Failed to play world sound {} at {}: {}", 
-                soundId, player.getGameProfile().getName(), e.getMessage());
+            PeekMod.LOGGER.error("Failed to play world sound {} at {}: {}",
+                soundId, ProfileCompat.getName(player.getGameProfile()), e.getMessage());
         }
     }
 }

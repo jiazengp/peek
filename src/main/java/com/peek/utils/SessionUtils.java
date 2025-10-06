@@ -7,6 +7,8 @@ import com.peek.data.peek.PlayerState;
 import com.peek.manager.exceptions.PeekException;
 import com.peek.manager.exceptions.SessionException;
 import com.peek.manager.constants.ErrorCodes;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -47,7 +49,7 @@ public class SessionUtils {
         }
         
         PeekMod.LOGGER.info("Player {} is being peeked by others, cleaning up {} sessions before starting new peek",
-            peeker.getGameProfile().getName(), peekerTargetingSessions.size());
+            ProfileCompat.getName(peeker.getGameProfile()), peekerTargetingSessions.size());
         
         // Copy to avoid concurrent modification
         Set<UUID> sessionsToStop = new HashSet<>(peekerTargetingSessions);
@@ -66,7 +68,7 @@ public class SessionUtils {
                     // Prevent rapid ping-pong (within 10 seconds)
                     if (lastSwapTime != null && (currentTime - lastSwapTime) < 10000) {
                         PeekMod.LOGGER.info("Preventing ping-pong peek between {} and {} (too recent)",
-                            peeker.getGameProfile().getName(), session.getPeekerName());
+                            ProfileCompat.getName(peeker.getGameProfile()), session.getPeekerName());
                         return "Circular peek too frequent, please wait a moment";
                     }
                     
@@ -75,23 +77,23 @@ public class SessionUtils {
                 }
                 
                 PeekMod.LOGGER.info("Stopping session where {} was peeking {} (circular: {})",
-                    session.getPeekerName(), peeker.getGameProfile().getName(), isCircularPeek);
-                
+                    session.getPeekerName(), ProfileCompat.getName(peeker.getGameProfile()), isCircularPeek);
+
                 // Send better notification to interrupted player
-                ServerPlayerEntity interruptedPlayer = peeker.getServer().getPlayerManager().getPlayer(otherPeekerId);
+                ServerPlayerEntity interruptedPlayer = ServerPlayerCompat.getServer(peeker).getPlayerManager().getPlayer(otherPeekerId);
                 if (interruptedPlayer != null) {
                     String messageKey = isCircularPeek ?
                         "peek.message.interrupted_by_circular_peek" :
                         "peek.message.interrupted_by_target_peek";
-                    Text message = Text.translatable(messageKey, peeker.getGameProfile().getName());
+                    Text message = Text.translatable(messageKey, ProfileCompat.getName(peeker.getGameProfile()));
                     interruptedPlayer.sendMessage(message, false);
-                    
-                    PeekMod.LOGGER.info("Notified {} about their peek session being interrupted by {}", 
-                        session.getPeekerName(), peeker.getGameProfile().getName());
+
+                    PeekMod.LOGGER.info("Notified {} about their peek session being interrupted by {}",
+                        session.getPeekerName(), ProfileCompat.getName(peeker.getGameProfile()));
                 }
-                
+
                 // Use callback to stop the session
-                stopSessionCallback.stopSession(otherPeekerId, false, peeker.getServer());
+                stopSessionCallback.stopSession(otherPeekerId, false, ServerPlayerCompat.getServer(peeker));
             }
         }
         
@@ -140,16 +142,16 @@ public class SessionUtils {
         
         // Send notifications - check if this was a switch
         String messageKey = wasSwitching ? "peek.peek_switched" : "peek.peek_started";
-        Text peekerMessage = Text.translatable(messageKey, target.getGameProfile().getName())
+        Text peekerMessage = Text.translatable(messageKey, ProfileCompat.getName(target.getGameProfile()))
             .formatted(Formatting.GREEN);
         peeker.sendMessage(peekerMessage, false);
-        
+
         if (wasSwitching) {
             PeekMod.LOGGER.info("Player {} successfully switched peek from previous target to {}",
-                peeker.getGameProfile().getName(), target.getGameProfile().getName());
+                ProfileCompat.getName(peeker.getGameProfile()), ProfileCompat.getName(target.getGameProfile()));
         }
-        
-        Text targetMessage = Text.translatable("peek.being_peeked", peeker.getGameProfile().getName())
+
+        Text targetMessage = Text.translatable("peek.being_peeked", ProfileCompat.getName(peeker.getGameProfile()))
             .formatted(Formatting.YELLOW);
         target.sendMessage(targetMessage, false);
         
@@ -195,8 +197,8 @@ public class SessionUtils {
         
         // Clear saved state only after successful restoration
         dataHandler.clearSavedState(peeker);
-        
-        PeekMod.LOGGER.info("Restored state for player {} after session end", peeker.getGameProfile().getName());
+
+        PeekMod.LOGGER.info("Restored state for player {} after session end", ProfileCompat.getName(peeker.getGameProfile()));
     }
     
     /**

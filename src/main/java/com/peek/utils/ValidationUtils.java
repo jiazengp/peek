@@ -8,6 +8,7 @@ import com.peek.data.peek.PlayerPeekData;
 import com.peek.manager.ManagerRegistry;
 import com.peek.manager.PeekSessionManager;
 import com.peek.manager.PeekRequestManager;
+import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.permissions.PermissionChecker;
 import eu.pb4.playerdata.api.PlayerDataApi;
 import net.minecraft.entity.mob.HostileEntity;
@@ -613,9 +614,9 @@ public class ValidationUtils {
         // Check for hostile mobs in radius around player
         BlockPos pos = player.getBlockPos();
         Box box = Box.of(pos.toCenterPos(), radius * 2, Math.min(radius, 5) * 2, radius * 2);
-        
+
         // Search for hostile monsters
-        return player.getWorld().getEntitiesByClass(HostileEntity.class, box,
+        return ServerPlayerCompat.getWorld(player).getEntitiesByClass(HostileEntity.class, box,
             (entity) -> entity.isAlive() && !entity.isRemoved()).isEmpty();
     }
     
@@ -632,12 +633,12 @@ public class ValidationUtils {
         }
         
         // If players are in different dimensions, skip distance check
-        if (requester.getWorld() != target.getWorld()) {
+        if (ServerPlayerCompat.getWorld(requester) != ServerPlayerCompat.getWorld(target)) {
             return true;
         }
-        
+
         // Check distance in same dimension
-        double distance = requester.getPos().distanceTo(target.getPos());
+        double distance = ServerPlayerCompat.getPos(requester).distanceTo(ServerPlayerCompat.getPos(target));
         return distance >= minDistance;
     }
 }

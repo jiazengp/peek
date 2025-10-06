@@ -7,6 +7,7 @@ import com.peek.manager.ManagerRegistry;
 import com.peek.manager.PeekSessionManager;
 import com.peek.manager.PeekStatisticsManager;
 import com.peek.utils.TextUtils;
+import com.peek.utils.compat.ProfileCompat;
 import eu.pb4.placeholders.api.PlaceholderContext;
 import eu.pb4.placeholders.api.PlaceholderResult;
 import eu.pb4.placeholders.api.node.LiteralNode;
@@ -23,16 +24,16 @@ public class Placeholders {
         // Register peek count placeholder
         eu.pb4.placeholders.api.Placeholders.register(Identifier.of(MOD_ID, "peek_count"), (ctx, args) -> {
             if (ctx.player() instanceof ServerPlayerEntity player) {
-                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUuid(), player.getGameProfile().getName());
+                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUuid(), ProfileCompat.getName(player.getGameProfile()));
                 return PlaceholderResult.value(Text.literal(String.valueOf(stats.peekCount())));
             }
             return PlaceholderResult.invalid("No player context");
         });
 
-        // Register peeked count placeholder  
+        // Register peeked count placeholder
         eu.pb4.placeholders.api.Placeholders.register(Identifier.of(MOD_ID, "peeked_count"), (ctx, args) -> {
             if (ctx.player() instanceof ServerPlayerEntity player) {
-                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUuid(), player.getGameProfile().getName());
+                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUuid(), ProfileCompat.getName(player.getGameProfile()));
                 return PlaceholderResult.value(Text.literal(String.valueOf(stats.peekedCount())));
             }
             return PlaceholderResult.invalid("No player context");
@@ -41,7 +42,7 @@ public class Placeholders {
         // Register total duration placeholder
         eu.pb4.placeholders.api.Placeholders.register(Identifier.of(MOD_ID, "total_duration"), (ctx, args) -> {
             if (ctx.player() instanceof ServerPlayerEntity player) {
-                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUuid(), player.getGameProfile().getName());
+                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUuid(), ProfileCompat.getName(player.getGameProfile()));
                 long totalSeconds = stats.totalPeekDuration();
                 return PlaceholderResult.value(Text.literal(TextUtils.formatDuration(totalSeconds)));
             }

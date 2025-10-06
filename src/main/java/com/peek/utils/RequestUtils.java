@@ -8,6 +8,8 @@ import com.peek.manager.ManagerRegistry;
 import com.peek.manager.PeekRequestManager;
 import com.peek.manager.PeekSessionManager;
 import com.peek.manager.constants.ErrorCodes;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.permissions.Permissions;
 import eu.pb4.playerdata.api.PlayerDataApi;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -106,14 +108,14 @@ public class RequestUtils {
         // Configuration restrictions
         double maxDistance = ModConfigManager.getMaxDistance();
         if (maxDistance > 0 && !ValidationUtils.canBypass(requester, Permissions.Bypass.DISTANCE, 2)) {
-            double distance = requester.getPos().distanceTo(target.getPos());
+            double distance = ServerPlayerCompat.getPos(requester).distanceTo(ServerPlayerCompat.getPos(target));
             if (distance > maxDistance) {
                 return ErrorCodes.DISTANCE_EXCEEDED.getTranslationKey();
             }
         }
-        
+
         if (!ModConfigManager.isAllowCrossDimension() && !ValidationUtils.canBypass(requester, Permissions.Bypass.DIMENSION, 2)) {
-            if (!requester.getWorld().getRegistryKey().equals(target.getWorld().getRegistryKey())) {
+            if (!ServerPlayerCompat.getWorld(requester).getRegistryKey().equals(ServerPlayerCompat.getWorld(target).getRegistryKey())) {
                 return ErrorCodes.DIMENSION_NOT_ALLOWED.getTranslationKey();
             }
         }

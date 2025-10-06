@@ -6,7 +6,10 @@ import com.peek.data.peek.PlayerPeekData;
 import com.peek.manager.ManagerRegistry;
 import com.peek.manager.PeekRequestManager;
 import com.peek.manager.PeekSessionManager;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.compat.TextEventCompat;
+import com.peek.utils.compat.UserCacheCompat;
 import eu.pb4.playerdata.api.PlayerDataApi;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -160,16 +163,16 @@ public abstract class AbstractPlayerListManager {
                 Long timestamp = entry.getValue();
                 count++;
                 
-                ServerPlayerEntity listPlayer = player.getServer().getPlayerManager().getPlayer(uuid);
+                ServerPlayerEntity listPlayer = ServerPlayerCompat.getServer(player).getPlayerManager().getPlayer(uuid);
                 String playerName;
-                
+
                 if (listPlayer != null) {
                     // Player is online, use current name
                     playerName = listPlayer.getName().getString();
                 } else {
                     // Player is offline, try to get name from player cache
-                    var profile = player.getServer().getUserCache().getByUuid(uuid);
-                    playerName = profile.isPresent() ? profile.get().getName() : "Unknown Player";
+                    var userCache = UserCacheCompat.getUserCache(ServerPlayerCompat.getServer(player));
+                    playerName = UserCacheCompat.getNameByUuid(userCache, uuid).orElse("Unknown Player");
                 }
                 
                 // Format timestamp
@@ -237,7 +240,7 @@ public abstract class AbstractPlayerListManager {
             var targetSession = sessionManager.getSessionByPeeker(target.getUuid());
             if (targetSession != null && targetSession.getTargetId().equals(player.getUuid())) {
                 // The blacklisted player is peeking the blacklister, stop the session
-                sessionManager.stopPeekSession(target.getUuid(), false, player.getServer());
+                sessionManager.stopPeekSession(target.getUuid(), false, ServerPlayerCompat.getServer(player));
                 
                 // Notify both players
                 target.sendMessage(Text.translatable("peek.message.ended_blacklisted"), false);

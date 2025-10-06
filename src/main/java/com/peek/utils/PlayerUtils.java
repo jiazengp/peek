@@ -5,6 +5,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
 import com.peek.PeekMod;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
+import com.peek.utils.compat.UserCacheCompat;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.MutableText;
@@ -38,13 +41,8 @@ public class PlayerUtils {
 
     public static Optional<String> getPlayerNameFromCache(MinecraftServer server, UUID uuid) {
         try {
-            UserCache userCache = server.getUserCache();
-            if (userCache != null) {
-                Optional<GameProfile> profile = userCache.getByUuid(uuid);
-                if (profile.isPresent()) {
-                    return Optional.of(profile.get().getName());
-                }
-            }
+            var userCache = UserCacheCompat.getUserCache(server);
+            return UserCacheCompat.getNameByUuid(userCache, uuid);
         } catch (Exception e) {
             PeekMod.LOGGER.error("Error getting player name from cache: {}", e.getMessage());
         }

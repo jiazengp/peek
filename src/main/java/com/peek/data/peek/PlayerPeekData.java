@@ -2,6 +2,7 @@ package com.peek.data.peek;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.peek.utils.compat.ProfileCompat;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,17 +62,17 @@ public record PlayerPeekData(
             PlayerPeekData data = eu.pb4.playerdata.api.PlayerDataApi.getCustomDataFor(player, 
                 com.peek.data.PeekDataStorage.PLAYER_PEEK_DATA_STORAGE);
             if (data == null) {
-                com.peek.PeekMod.LOGGER.debug("No existing player data found for {} - creating default", 
-                    player.getGameProfile().getName());
+                com.peek.PeekMod.LOGGER.debug("No existing player data found for {} - creating default",
+                    ProfileCompat.getName(player.getGameProfile()));
                 return createDefault();
             }
-            
-            com.peek.PeekMod.LOGGER.debug("Loaded existing player data for {} - hasState: {}", 
-                player.getGameProfile().getName(), data.hasSavedState());
+
+            com.peek.PeekMod.LOGGER.debug("Loaded existing player data for {} - hasState: {}",
+                ProfileCompat.getName(player.getGameProfile()), data.hasSavedState());
             return data;
         } catch (Exception e) {
-            com.peek.PeekMod.LOGGER.error("Error loading player data for {} - creating default. Error: {}", 
-                player.getGameProfile().getName(), e.getMessage(), e);
+            com.peek.PeekMod.LOGGER.error("Error loading player data for {} - creating default. Error: {}",
+                ProfileCompat.getName(player.getGameProfile()), e.getMessage(), e);
             return createDefault();
         }
     }
