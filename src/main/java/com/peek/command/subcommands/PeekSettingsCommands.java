@@ -12,6 +12,8 @@ import com.peek.manager.constants.PeekConstants;
 import com.peek.utils.BlacklistCommandBuilder;
 import com.peek.utils.CommandUtils;
 import com.peek.utils.WhitelistCommandBuilder;
+import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.permissions.PermissionChecker;
 import com.peek.utils.permissions.Permissions;
 import eu.pb4.playerdata.api.PlayerDataApi;
@@ -132,12 +134,12 @@ public class PeekSettingsCommands {
         List<PeekSession> targetingSessions = sessionManager.getSessionsTargeting(playerId);
         
         if (targetingSessions.isEmpty()) {
-            PeekMod.LOGGER.debug("No sessions targeting {} to clear for private mode", player.getGameProfile().getName());
+            PeekMod.LOGGER.debug("No sessions targeting {} to clear for private mode", ProfileCompat.getName(player.getGameProfile()));
             return; // No sessions to clear
         }
-        
+
         PeekMod.LOGGER.debug("Clearing {} peek sessions targeting {} due to private mode activation",
-            targetingSessions.size(), player.getGameProfile().getName());
+            targetingSessions.size(), ProfileCompat.getName(player.getGameProfile()));
         
         // Create a copy to avoid concurrent modification issues
         List<UUID> peekerIds = new ArrayList<>();
@@ -153,18 +155,18 @@ public class PeekSettingsCommands {
         for (UUID peekerId : peekerIds) {
             try {
                 // Stop the session
-                PeekConstants.Result<String> result = sessionManager.stopPeekSession(peekerId, false, player.getServer());
-                
+                PeekConstants.Result<String> result = sessionManager.stopPeekSession(peekerId, false, ServerPlayerCompat.getServer(player));
+
                 if (result.isSuccess()) {
                     successfullyCleared++;
                     PeekMod.LOGGER.debug("Successfully stopped session for peeker {}", peekerId);
-                    
+
                     // Notify the peeker about why their session was ended
-                    if (player.getServer() == null) {
+                    if (ServerPlayerCompat.getServer(player) == null) {
                         return;
                     }
 
-                    ServerPlayerEntity peeker = player.getServer().getPlayerManager().getPlayer(peekerId);
+                    ServerPlayerEntity peeker = ServerPlayerCompat.getServer(player).getPlayerManager().getPlayer(peekerId);
                     if (peeker != null) {
                         Text message = Text.translatable("peek.message.ended_private_mode", player.getDisplayName());
                         peeker.sendMessage(message, false);
@@ -183,11 +185,11 @@ public class PeekSettingsCommands {
                 .formatted(Formatting.YELLOW);
             player.sendMessage(message, false);
             
-            PeekMod.LOGGER.debug("Successfully cleared {} out of {} sessions targeting {}", 
-                successfullyCleared, targetingSessions.size(), player.getGameProfile().getName());
+            PeekMod.LOGGER.debug("Successfully cleared {} out of {} sessions targeting {}",
+                successfullyCleared, targetingSessions.size(), ProfileCompat.getName(player.getGameProfile()));
         } else {
-            PeekMod.LOGGER.warn("Failed to clear any sessions targeting {} (found {} sessions)", 
-                player.getGameProfile().getName(), targetingSessions.size());
+            PeekMod.LOGGER.warn("Failed to clear any sessions targeting {} (found {} sessions)",
+                ProfileCompat.getName(player.getGameProfile()), targetingSessions.size());
         }
     }
     

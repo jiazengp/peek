@@ -13,6 +13,7 @@ import com.peek.manager.PeekSessionManager;
 import com.peek.manager.PeekStatisticsManager;
 import com.peek.utils.*;
 import com.peek.manager.constants.PeekConstants;
+import com.peek.utils.compat.ProfileCompat;
 import com.peek.utils.permissions.Permissions;
 import net.fabricmc.loader.api.metadata.Person;
 import net.minecraft.command.argument.EntityArgumentType;
@@ -252,10 +253,10 @@ public class PeekManageCommands {
     private static int showPlayerDetails(CommandContext<ServerCommandSource> context) {
         return CommandUtils.executeWithPlayer(context, "target", (target) -> {
             PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class)
-                .getPlayerStats(target.getUuid(), target.getGameProfile().getName());
-            
-            MutableText message = Text.translatable("peek.manage.player.header", 
-                target.getGameProfile().getName()).formatted(Formatting.GOLD, Formatting.BOLD);
+                .getPlayerStats(target.getUuid(), ProfileCompat.getName(target.getGameProfile()));
+
+            MutableText message = Text.translatable("peek.manage.player.header",
+                ProfileCompat.getName(target.getGameProfile())).formatted(Formatting.GOLD, Formatting.BOLD);
             
             // Basic stats
             TextUtils.addStatLine(message, Text.translatable("peek.manage.player.peek_count"), stats.peekCount());
@@ -348,8 +349,8 @@ public class PeekManageCommands {
                 .stopPeekSession(target.getUuid(), false, source.getServer());
             
             if (result.isSuccess()) {
-                source.sendFeedback(() -> Text.translatable("peek.manage.session_stopped", 
-                    target.getGameProfile().getName()).formatted(Formatting.GREEN), false);
+                source.sendFeedback(() -> Text.translatable("peek.manage.session_stopped",
+                    ProfileCompat.getName(target.getGameProfile())).formatted(Formatting.GREEN), false);
                 return 1;
             } else {
                 source.sendError(Text.translatable("peek.manage.failed_to_stop", result.getError()));

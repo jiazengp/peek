@@ -13,6 +13,7 @@ import com.peek.utils.CommandUtils;
 import com.peek.manager.constants.PeekConstants;
 import com.peek.utils.TextUtils;
 import com.peek.utils.ValidationUtils;
+import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.compat.TextEventCompat;
 import com.peek.utils.permissions.Permissions;
 import net.minecraft.command.argument.EntityArgumentType;
@@ -135,11 +136,11 @@ public class PeekRequestCommands {
             
             // Simple success confirmation for cancel operation
 
-            if (player.getServer() == null) {
+            if (ServerPlayerCompat.getServer(player) == null) {
                 return 0;
             }
 
-            ServerPlayerEntity target = player.getServer().getPlayerManager().getPlayer(request.getTargetId());
+            ServerPlayerEntity target = ServerPlayerCompat.getServer(player).getPlayerManager().getPlayer(request.getTargetId());
             Text targetName = target != null ? target.getDisplayName() : Text.translatable("argument.player.unknown");
             player.sendMessage(Text.translatable("peek.request_cancelled", targetName), false);
             
@@ -149,7 +150,7 @@ public class PeekRequestCommands {
     
     private static int stopPeek(CommandContext<ServerCommandSource> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            PeekConstants.Result<String> result = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopPeekSession(player.getUuid(), false, player.getServer());
+            PeekConstants.Result<String> result = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopPeekSession(player.getUuid(), false, ServerPlayerCompat.getServer(player));
             
             if (result.isSuccess()) {
                 // Simple success confirmation for stop operation
@@ -201,7 +202,7 @@ public class PeekRequestCommands {
             }
             
             PeekConstants.Result<String> result = ManagerRegistry.getInstance().getManager(PeekSessionManager.class)
-                .stopPeekSession(peekerPlayer.getUuid(), false, player.getServer());
+                .stopPeekSession(peekerPlayer.getUuid(), false, ServerPlayerCompat.getServer(player));
             
             if (result.isSuccess()) {
                 // No need to confirm to player - they initiated the kick
