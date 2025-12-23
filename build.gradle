@@ -91,7 +91,7 @@ writeBuildGradlePredefine(versionProperties, mcVersionInfo)
 
 // Manifold preprocessor configuration
 manifold {
-	manifoldVersion = "2024.1.42"
+	manifoldVersion = "2025.1.29"
 }
 
 base {

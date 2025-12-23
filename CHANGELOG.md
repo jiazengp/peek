@@ -1,6 +1,14 @@
 # ChangeLog
 
-## [v1.0.3] - 2025-01-XX
+## [v1.0.3+1.21.11] - 2025-12-22
+
+### Added
+
+- **Minecraft 1.21.11 Support**: Full compatibility with Minecraft 1.21.9
+
+---
+
+## [v1.0.3+1.21.9] - 2025-10-7
 
 ### Added
 
