@@ -4,8 +4,8 @@ import com.peek.config.ModConfigManager;
 import com.peek.manager.constants.ErrorCodes;
 import com.peek.manager.exceptions.RequestException;
 import com.peek.manager.constants.PeekConstants;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 
 import java.time.Instant;
 import java.util.Map;
@@ -27,14 +27,14 @@ public class InviteManager extends BaseManager {
     /**
      * Create an invitation from inviter to invitee
      */
-    public PeekConstants.Result<String> createInvite(ServerPlayerEntity inviter, ServerPlayerEntity invitee) {
+    public PeekConstants.Result<String> createInvite(ServerPlayer inviter, ServerPlayer invitee) {
         try {
-            UUID inviterId = inviter.getUuid();
-            UUID inviteeId = invitee.getUuid();
+            UUID inviterId = inviter.getUUID();
+            UUID inviteeId = invitee.getUUID();
             
             // Check if invite already exists
             if (hasActiveInvite(inviterId, inviteeId)) {
-                throw new RequestException(ErrorCodes.DUPLICATE_INVITE, Text.translatable("peek.error.duplicate_invite").getString());
+                throw new RequestException(ErrorCodes.DUPLICATE_INVITE, Component.translatable("peek.error.duplicate_invite").getString());
             }
             
             long expirationTime = Instant.now().toEpochMilli() + 
@@ -43,12 +43,12 @@ public class InviteManager extends BaseManager {
             activeInvites.computeIfAbsent(inviterId, k -> new ConcurrentHashMap<>())
                 .put(inviteeId, expirationTime);
                 
-            return PeekConstants.Result.success(Text.translatable("peek.message.invite_created").getString());
+            return PeekConstants.Result.success(Component.translatable("peek.message.invite_created").getString());
             
         } catch (RequestException e) {
             return PeekConstants.Result.failure(e.getMessage());
         } catch (Exception e) {
-            return PeekConstants.Result.failure(Text.translatable("peek.message.invite_failed").getString());
+            return PeekConstants.Result.failure(Component.translatable("peek.message.invite_failed").getString());
         }
     }
     
@@ -90,17 +90,17 @@ public class InviteManager extends BaseManager {
                 }
                 
                 if (removed) {
-                    return PeekConstants.Result.success(Text.translatable("peek.message.invite_consumed").getString());
+                    return PeekConstants.Result.success(Component.translatable("peek.message.invite_consumed").getString());
                 } else {
-                    throw new RequestException(ErrorCodes.INVITE_NOT_FOUND, Text.translatable("peek.error.invite_not_found").getString());
+                    throw new RequestException(ErrorCodes.INVITE_NOT_FOUND, Component.translatable("peek.error.invite_not_found").getString());
                 }
             } else {
-                throw new RequestException(ErrorCodes.INVITE_NOT_FOUND, Text.translatable("peek.error.invite_not_found").getString());
+                throw new RequestException(ErrorCodes.INVITE_NOT_FOUND, Component.translatable("peek.error.invite_not_found").getString());
             }
         } catch (RequestException e) {
             return PeekConstants.Result.failure(e.getMessage());
         } catch (Exception e) {
-            return PeekConstants.Result.failure(Text.translatable("peek.message.invite_consume_failed").getString());
+            return PeekConstants.Result.failure(Component.translatable("peek.message.invite_consume_failed").getString());
         }
     }
     
@@ -117,3 +117,4 @@ public class InviteManager extends BaseManager {
         });
     }
 }
+

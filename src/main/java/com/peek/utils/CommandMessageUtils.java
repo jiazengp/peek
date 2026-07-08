@@ -1,9 +1,9 @@
 package com.peek.utils;
 
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.function.BiConsumer;
 
@@ -15,41 +15,41 @@ public class CommandMessageUtils {
     /**
      * Create a formatted header text using translation key
      */
-    public static Text createHeader(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.GOLD, Formatting.BOLD);
+    public static Component createHeader(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
     }
     
     /**
      * Create a separator line using translation key
      */
-    public static Text createSeparator(String translationKey) {
-        return Text.translatable(translationKey).formatted(Formatting.GOLD);
+    public static Component createSeparator(String translationKey) {
+        return Component.translatable(translationKey).withStyle(ChatFormatting.GOLD);
     }
     
     /**
      * Create an info line with key-value pair
      */
-    public static BiConsumer<String, String> createInfoLineSender(ServerCommandSource source) {
+    public static BiConsumer<String, String> createInfoLineSender(CommandSourceStack source) {
         return (translationKey, value) -> {
-            MutableText line = Text.translatable(translationKey, value).formatted(Formatting.WHITE);
-            source.sendMessage(line);
+            MutableComponent line = Component.translatable(translationKey, value).withStyle(ChatFormatting.WHITE);
+            source.sendSystemMessage(line);
         };
     }
     
     /**
      * Create an info line with URL handling
      */
-    public static BiConsumer<String, String> createUrlInfoLineSender(ServerCommandSource source) {
+    public static BiConsumer<String, String> createUrlInfoLineSender(CommandSourceStack source) {
         return (translationKey, value) -> {
             if (value.startsWith("https://")) {
-                MutableText line = Text.translatable(translationKey, "")
-                        .append(Text.literal(value.replaceAll("https://", ""))
-                                .styled(style -> style.withClickEvent(TextEventFactory.openUrl(value))
-                                        .withColor(Formatting.AQUA)));
-                source.sendMessage(line);
+                MutableComponent line = Component.translatable(translationKey, "")
+                        .append(Component.literal(value.replaceAll("https://", ""))
+                                .withStyle(style -> style.withClickEvent(TextEventFactory.openUrl(value))
+                                        .withColor(ChatFormatting.AQUA)));
+                source.sendSystemMessage(line);
             } else {
-                MutableText line = Text.translatable(translationKey, value).formatted(Formatting.WHITE);
-                source.sendMessage(line);
+                MutableComponent line = Component.translatable(translationKey, value).withStyle(ChatFormatting.WHITE);
+                source.sendSystemMessage(line);
             }
         };
     }
@@ -57,42 +57,43 @@ public class CommandMessageUtils {
     /**
      * Create a debug info line
      */
-    public static MutableText createDebugLine(String label, Object value) {
-        return Text.literal("\n" + label + ": " + value).formatted(Formatting.WHITE);
+    public static MutableComponent createDebugLine(String label, Object value) {
+        return Component.literal("\n" + label + ": " + value).withStyle(ChatFormatting.WHITE);
     }
     
     /**
      * Create a section header for debug output
      */
-    public static MutableText createDebugSection(String sectionName) {
-        return Text.literal("\n--- " + sectionName + " ---").formatted(Formatting.GOLD);
+    public static MutableComponent createDebugSection(String sectionName) {
+        return Component.literal("\n--- " + sectionName + " ---").withStyle(ChatFormatting.GOLD);
     }
     
     /**
      * Create a simple info message
      */
-    public static Text createInfo(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.GRAY);
+    public static Component createInfo(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.GRAY);
     }
     
     /**
      * Create an error message
      */
-    public static Text createError(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.RED);
+    public static Component createError(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.RED);
     }
     
     /**
      * Create a success message
      */
-    public static Text createSuccess(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.GREEN);
+    public static Component createSuccess(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.GREEN);
     }
     
     /**
      * Create a warning message
      */
-    public static Text createWarning(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.YELLOW);
+    public static Component createWarning(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.YELLOW);
     }
 }
+

@@ -2,7 +2,7 @@ package com.peek.utils;
 
 import com.peek.utils.permissions.Permissions;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Instant;
@@ -35,11 +35,11 @@ public class CooldownManager {
     /**
      * Checks if a player is on peek cooldown, with bypass permission check
      */
-    public boolean isOnCooldown(@NotNull ServerPlayerEntity player) {
+    public boolean isOnCooldown(@NotNull ServerPlayer player) {
         if (ValidationUtils.canBypass(player, Permissions.Bypass.COOLDOWN, 2)) {
             return false;
         }
-        return isOnCooldown(player.getUuid());
+        return isOnCooldown(player.getUUID());
     }
     
     /**
@@ -52,11 +52,11 @@ public class CooldownManager {
     /**
      * Checks if a player is on invite cooldown, with bypass permission check
      */
-    public boolean isOnInviteCooldown(@NotNull ServerPlayerEntity player) {
+    public boolean isOnInviteCooldown(@NotNull ServerPlayer player) {
         if (ValidationUtils.canBypass(player, Permissions.Bypass.COOLDOWN, 2)) {
             return false;
         }
-        return isOnInviteCooldown(player.getUuid());
+        return isOnInviteCooldown(player.getUUID());
     }
     
     /**
@@ -162,3 +162,4 @@ public class CooldownManager {
         return peekCooldowns.size() + inviteCooldowns.size();
     }
 }
+

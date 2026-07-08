@@ -3,13 +3,13 @@ package com.peek.utils;
 import com.mojang.brigadier.context.CommandContext;
 import com.peek.PeekMod;
 import com.peek.utils.compat.ServerPlayerCompat;
-import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.Collection;
 import java.util.Objects;
@@ -27,11 +27,11 @@ public class CommandUtils {
      * @param argName Argument name
      * @return Player entity or null if not found
      */
-    public static ServerPlayerEntity getPlayerArgument(CommandContext<ServerCommandSource> context, String argName) {
+    public static ServerPlayer getPlayerArgument(CommandContext<CommandSourceStack> context, String argName) {
         try {
-            ServerPlayerEntity target = EntityArgumentType.getPlayer(context, argName);
+            ServerPlayer target = EntityArgument.getPlayer(context, argName);
             if (target == null) {
-                Objects.requireNonNull(context.getSource().getPlayer()).sendMessage(Text.translatable("peek.error.player_not_found").formatted(Formatting.RED), false);
+                Objects.requireNonNull(context.getSource().getPlayer()).sendSystemMessage(Component.translatable("peek.error.player_not_found").withStyle(ChatFormatting.RED), false);
                 return null;
             }
             return target;
@@ -46,9 +46,9 @@ public class CommandUtils {
      * @param argName Argument name
      * @return Collection of player entities
      */
-    public static Collection<ServerPlayerEntity> getPlayersArgument(CommandContext<ServerCommandSource> context, String argName) {
+    public static Collection<ServerPlayer> getPlayersArgument(CommandContext<CommandSourceStack> context, String argName) {
         try {
-            return EntityArgumentType.getPlayers(context, argName);
+            return EntityArgument.getPlayers(context, argName);
         } catch (Exception e) {
             return java.util.Collections.emptyList();
         }
@@ -60,11 +60,11 @@ public class CommandUtils {
      * @param command Command to execute
      * @return Command result
      */
-    public static int executeCommand(CommandContext<ServerCommandSource> context, Supplier<Integer> command) {
+    public static int executeCommand(CommandContext<CommandSourceStack> context, Supplier<Integer> command) {
         try {
             return command.get();
         } catch (Exception e) {
-            context.getSource().sendError(Text.translatable("peek.error.internal"));
+            context.getSource().sendFailure(Component.translatable("peek.error.internal"));
             return 0;
         }
     }
@@ -75,14 +75,14 @@ public class CommandUtils {
      * @param command Command function taking a player
      * @return Command result
      */
-    public static int executePlayerCommand(CommandContext<ServerCommandSource> context, 
-                                         Function<ServerPlayerEntity, Integer> command) {
+    public static int executePlayerCommand(CommandContext<CommandSourceStack> context, 
+                                         Function<ServerPlayer, Integer> command) {
         try {
-            ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
+            ServerPlayer player = context.getSource().getPlayerOrException();
             return command.apply(player);
         } catch (Exception e) {
             PeekMod.LOGGER.error(e.getMessage());
-            context.getSource().sendError(Text.translatable("peek.error.internal"));
+            context.getSource().sendFailure(Component.translatable("peek.error.internal"));
             return 0;
         }
     }
@@ -95,13 +95,13 @@ public class CommandUtils {
      * @param resultHandler Result handler function
      * @return Command result
      */
-    public static <T> int executeWithPlayer(CommandContext<ServerCommandSource> context, String argName, 
-                                          Function<ServerPlayerEntity, T> command,
+    public static <T> int executeWithPlayer(CommandContext<CommandSourceStack> context, String argName, 
+                                          Function<ServerPlayer, T> command,
                                           Function<T, Integer> resultHandler) {
         return executeCommand(context, () -> {
-            ServerPlayerEntity player = getPlayerArgument(context, argName);
+            ServerPlayer player = getPlayerArgument(context, argName);
             if (player == null) {
-                context.getSource().sendError(Text.translatable("peek.error.player_not_found"));
+                context.getSource().sendFailure(Component.translatable("peek.error.player_not_found"));
                 return 0;
             }
             T result = command.apply(player);
@@ -115,27 +115,27 @@ public class CommandUtils {
      * @param error Error code
      * @return Formatted error text
      */
-    public static Text getErrorMessage(String error) {
+    public static Component getErrorMessage(String error) {
         if (error.contains(":")) {
             String[] parts = error.split(":", 2);
             if (parts[0].equals("ON_COOLDOWN")) {
                 long remainingSeconds = Long.parseLong(parts[1]) / 1000;
-                return Text.translatable("peek.error.on_cooldown", remainingSeconds).formatted(Formatting.RED);
+                return Component.translatable("peek.error.on_cooldown", remainingSeconds).withStyle(ChatFormatting.RED);
             }
         }
         
         // The error parameter is expected to be a translation key (e.g., "peek.error.hostile_mobs_nearby")
         // Simply use it directly for translation
-        return Text.translatable(error).formatted(Formatting.RED);
+        return Component.translatable(error).withStyle(ChatFormatting.RED);
     }
     
     /**
      * Updates command tree for a player to reflect current game state
      * @param player Player to update commands for
      */
-    public static void updateCommandTree(ServerPlayerEntity player) {
+    public static void updateCommandTree(ServerPlayer player) {
         try {
-            ServerPlayerCompat.getServer(player).getPlayerManager().sendCommandTree(player);
+            ServerPlayerCompat.getServer(player).getCommands().sendCommands(player);
         } catch (Exception e) {
             // Ignore errors - command tree update is not critical
         }
@@ -146,7 +146,7 @@ public class CommandUtils {
      * @param requester Requester player (can be null if offline)
      * @param target Target player (can be null if offline)
      */
-    public static void updateCommandTreesForRequest(ServerPlayerEntity requester, ServerPlayerEntity target) {
+    public static void updateCommandTreesForRequest(ServerPlayer requester, ServerPlayer target) {
         if (requester != null) {
             updateCommandTree(requester); // Update cancel command visibility
         }
@@ -165,9 +165,11 @@ public class CommandUtils {
     public static void updateCommandTreesForRequest(MinecraftServer server, java.util.UUID requesterId, java.util.UUID targetId) {
         if (server == null) return;
         
-        ServerPlayerEntity requester = server.getPlayerManager().getPlayer(requesterId);
-        ServerPlayerEntity target = server.getPlayerManager().getPlayer(targetId);
+        ServerPlayer requester = server.getPlayerList().getPlayer(requesterId);
+        ServerPlayer target = server.getPlayerList().getPlayer(targetId);
         
         updateCommandTreesForRequest(requester, target);
     }
 }
+
+

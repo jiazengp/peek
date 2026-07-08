@@ -5,16 +5,16 @@ import com.peek.command.subcommands.PeekRequestCommands;
 import com.peek.command.subcommands.PeekSettingsCommands;
 import com.peek.command.subcommands.PeekUtilityCommands;
 import com.peek.command.subcommands.PeekManageCommands;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
 
 /**
  * Main peek command implementation - now delegated to subcommand modules
  */
 public class PeekCommand {
     
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-        dispatcher.register(CommandManager.literal("peek")
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("peek")
             // Request management commands
             .then(PeekRequestCommands.createPlayerCommand())
             .then(PeekRequestCommands.createAcceptCommand())
@@ -39,3 +39,5 @@ public class PeekCommand {
             .executes(PeekUtilityCommands::showUsage));
     }
 }
+
+

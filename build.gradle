@@ -1,5 +1,5 @@
 plugins {
-	id 'fabric-loom' version "${loom_version}"
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
 	id 'maven-publish'
 	id 'java'
 	id "systems.manifold.manifold-gradle-plugin" version "0.0.2-alpha"
@@ -7,8 +7,25 @@ plugins {
 
 // Enhanced version properties loading with preprocessor support
 def loadVersionProperties() {
-	def mcVer = project.findProperty('mcVer') ?: project.findProperty('minecraft_version') ?: gradle.ext.mcVer
+	def projectProperties = gradle.startParameter.projectProperties
+	def mcVer = projectProperties.get('mcVer')?.toString()
+		?: gradle.ext.mcVer?.toString()
+		?: projectProperties.get('minecraft_version')?.toString()
+		?: project.findProperty('mcVer')?.toString()
+		?: project.findProperty('minecraft_version')?.toString()
 	def targetPropertiesFile = file("version_properties/${mcVer}.properties")
+	if (!targetPropertiesFile.exists()) {
+		def versionPropertiesDir = file("version_properties")
+		def normalizedCandidate = versionPropertiesDir.exists()
+			? versionPropertiesDir.listFiles().find { file ->
+				file.name.endsWith('.properties') && file.name.replace('.properties', '') ==~ /^${java.util.regex.Pattern.quote(mcVer)}\.\d+(\.\d+)?$/
+			}
+			: null
+		if (normalizedCandidate != null) {
+			mcVer = normalizedCandidate.name.replace('.properties', '')
+			targetPropertiesFile = normalizedCandidate
+		}
+	}
 	
 	def versionProperties = new Properties()
 	if (targetPropertiesFile.exists()) {
@@ -21,31 +38,44 @@ def loadVersionProperties() {
 }
 
 def versionProperties = loadVersionProperties()
+def compatibleVersionsRaw = versionProperties.getProperty("compatible_minecraft_versions", versionProperties.getProperty("minecraft_version"))
+// Parse version list and use >= with minimum version for Fabric compatibility
+def versionList = compatibleVersionsRaw.replaceAll('^\\["', '').replaceAll('"\\]$', '').split('","')
+def minVersion = versionList.min { a, b ->
+    def aParts = a.split('\\.').collect { it.toInteger() }
+    def bParts = b.split('\\.').collect { it.toInteger() }
+    for (int i = 0; i < Math.max(aParts.size(), bParts.size()); i++) {
+        int aNum = i < aParts.size() ? aParts[i] : 0
+        int bNum = i < bParts.size() ? bParts[i] : 0
+        if (aNum != bNum) return aNum <=> bNum
+    }
+    return 0
+}
+def compatibleMinecraftVersions = ">=${minVersion}"
 def compatibleVersions = versionProperties.getProperty("minecraft_version")
 
 // Parse version components once for reuse
 def parseVersionComponents(String version) {
 	def parts = version.split('\\.')
-	def major = parts.length > 0 ? parts[0] : "1"
-	def minor = parts.length > 1 ? parts[1] : "21"
-	def patch = parts.length > 2 ? parts[2] : "0"
-	
-	// Format version number for MC_VER (handle both 1.20 and 1.21.x formats)
-	def formattedVersion
-	if (parts.length == 2) {
-		// 1.20 format -> 120
-		formattedVersion = "${major}${minor}"
-	} else {
-		// 1.21.x format -> 121x
-		formattedVersion = "${major}${minor}${patch}"
+	def isNewFormat = (parts.length == 2 && parts[0].toInteger() >= 20) ||
+		(parts.length == 3 && parts[0].toInteger() >= 20)
+
+	if (!isNewFormat) {
+		throw new GradleException("Only Minecraft 26.x+ is supported by this branch: ${version}")
 	}
-	
+
+	def major = parts[0]
+	def minor = parts.length > 1 ? parts[1] : "0"
+	def patch = parts.length > 2 ? parts[2] : "0"
+	def formattedVersion = String.format("%02d%02d%01d", major.toInteger(), minor.toInteger(), patch.toInteger())
+
 	return [
 		major: major,
-		minor: minor, 
+		minor: minor,
 		patch: patch,
 		full: version,
-		formatted: formattedVersion
+		formatted: formattedVersion,
+		isNewFormat: isNewFormat
 	]
 }
 
@@ -55,19 +85,25 @@ def mcVersionInfo = parseVersionComponents(versionProperties.getProperty("minecr
 def writeBuildGradlePredefine(Properties versionProps, mcInfo) {
 	def currentMcVer = versionProps.getProperty("minecraft_version")
 	def buildPropsFile = file("build.properties")
-	
+
 	StringBuilder sb = new StringBuilder()
 	sb.append("# Generated preprocessor definitions for Minecraft ${currentMcVer}\n")
 	sb.append("# Generated at: ${new Date()}\n")
 	sb.append("\n")
-	
+
 	// Version flags using parsed components
 	sb.append("MC_VER=${mcInfo.formatted}\n")
-	sb.append("MC_${mcInfo.major}_${mcInfo.minor}_${mcInfo.patch}=1\n")
+	if (mcInfo.patch == "0") {
+		sb.append("MC_${mcInfo.major}_${mcInfo.minor}=1\n")
+	} else {
+		sb.append("MC_${mcInfo.major}_${mcInfo.minor}_${mcInfo.patch}=1\n")
+	}
+
 	sb.append("MC_MAJOR=${mcInfo.major}\n")
-	sb.append("MC_MINOR=${mcInfo.minor}\n") 
+	sb.append("MC_MINOR=${mcInfo.minor}\n")
 	sb.append("MC_PATCH=${mcInfo.patch}\n")
-	
+	sb.append("MC_NEW_FORMAT=${mcInfo.isNewFormat ? 1 : 0}\n")
+
 	// Set other version flags to 0 for conditional compilation
 	def versionPropertiesDir = file("version_properties")
 	if (versionPropertiesDir.exists()) {
@@ -76,12 +112,16 @@ def writeBuildGradlePredefine(Properties versionProps, mcInfo) {
 				def otherVersion = file.name.replace('.properties', '')
 				if (otherVersion != currentMcVer) {
 					def otherInfo = parseVersionComponents(otherVersion)
-					sb.append("MC_${otherInfo.major}_${otherInfo.minor}_${otherInfo.patch}=0\n")
+					if (otherInfo.patch == "0") {
+						sb.append("MC_${otherInfo.major}_${otherInfo.minor}=0\n")
+					} else {
+						sb.append("MC_${otherInfo.major}_${otherInfo.minor}_${otherInfo.patch}=0\n")
+					}
 				}
 			}
 		}
 	}
-	
+
 	buildPropsFile.text = sb.toString()
 	println "Generated build.properties for Minecraft ${currentMcVer}"
 }
@@ -92,6 +132,10 @@ writeBuildGradlePredefine(versionProperties, mcVersionInfo)
 // Manifold preprocessor configuration
 manifold {
 	manifoldVersion = "2025.1.29"
+}
+
+loom {
+	noIntermediateMappings()
 }
 
 base {
@@ -113,21 +157,20 @@ dependencies {
 	implementation platform("net.fabricmc.fabric-api:fabric-api-bom:${versionProperties.getProperty("fabric_version")}")
 
 	minecraft "com.mojang:minecraft:${versionProperties.getProperty("minecraft_version")}"
-	mappings "net.fabricmc:yarn:${versionProperties.getProperty("yarn_mappings_version")}:v2"
-	modImplementation "net.fabricmc:fabric-loader:${versionProperties.getProperty("fabric_loader_version")}"
+	implementation "net.fabricmc:fabric-loader:${versionProperties.getProperty("fabric_loader_version")}"
 
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${versionProperties.getProperty("fabric_version")}"
-	modImplementation include("eu.pb4:placeholder-api:${versionProperties.getProperty("placeholder_api_version")}")
-	modImplementation include("xyz.nucleoid:server-translations-api:${versionProperties.getProperty("server_translations_api_version")}")
-	modImplementation include("eu.pb4:player-data-api:${versionProperties.getProperty("player_data_api_version")}")
-	modImplementation include("eu.pb4:common-protection-api:1.0.0")
+	implementation "net.fabricmc.fabric-api:fabric-api:${versionProperties.getProperty("fabric_version")}"
+	implementation include("eu.pb4:placeholder-api:${versionProperties.getProperty("placeholder_api_version")}")
+	implementation include("xyz.nucleoid:server-translations-api:${versionProperties.getProperty("server_translations_api_version")}")
+	implementation include("eu.pb4:player-data-api:${versionProperties.getProperty("player_data_api_version")}")
+	implementation include("eu.pb4:common-protection-api:1.0.0")
 
 	include(implementation(annotationProcessor("io.github.llamalad7:mixinextras-fabric:0.5.0")))
-	include(modImplementation("me.lucko:fabric-permissions-api:${versionProperties.getProperty("fabric_permissions_api_version")}"))
+	implementation include("me.lucko:fabric-permissions-api:${versionProperties.getProperty("fabric_permissions_api_version")}")
 
 	include(implementation("de.exlll:configlib-core:4.6.1"))
 	include(implementation("de.exlll:configlib-yaml:4.6.1"))
-	include(implementation("org.snakeyaml:snakeyaml-engine:2.10"))
+	include(implementation("org.snakeyaml:snakeyaml-engine:2.7"))
 	
 	// Manifold preprocessor for version compatibility (inspired by Fuji)
 	annotationProcessor 'systems.manifold:manifold-preprocessor:2025.1.27'
@@ -139,22 +182,25 @@ dependencies {
 	testImplementation "net.fabricmc:fabric-loader:${versionProperties.getProperty("fabric_loader_version")}"
 }
 
+def javaVersion = versionProperties.getProperty("java_version", "25").toInteger()
+
 java {
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.toVersion(javaVersion)
+	targetCompatibility = JavaVersion.toVersion(javaVersion)
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = javaVersion
 }
 
 processResources {
 	inputs.property "version", version
 	inputs.property "minecraft_version", mcVersionInfo.full
-	inputs.property "compatible_minecraft_versions", versionProperties.getProperty("compatible_minecraft_versions", "[]")
+	inputs.property "compatible_minecraft_versions", compatibleMinecraftVersions
 	inputs.property "java_version", versionProperties.getProperty("java_version")
 	inputs.property "fabricloader_version", versionProperties.getProperty("fabric_loader_version")
+	inputs.property "fabric_loader_min_version", versionProperties.getProperty("fabric_loader_min_version")
 	inputs.property "mc_ver_major", mcVersionInfo.major
 	inputs.property "mc_ver_minor", mcVersionInfo.minor
 	inputs.property "mc_ver_patch", mcVersionInfo.patch
@@ -165,8 +211,9 @@ processResources {
 				"version": version,
 				"java_version": versionProperties.getProperty("java_version"),
 				"minecraft_version": mcVersionInfo.full,
-				"compatible_minecraft_versions": versionProperties.getProperty("compatible_minecraft_versions", "[]"),
+				"compatible_minecraft_versions": compatibleMinecraftVersions,
 				"fabric_loader_version": versionProperties.getProperty("fabric_loader_version"),
+				"fabric_loader_min_version": versionProperties.getProperty("fabric_loader_min_version"),
 				"mc_ver_major": mcVersionInfo.major,
 				"mc_ver_minor": mcVersionInfo.minor,
 				"mc_ver_patch": mcVersionInfo.patch
@@ -221,3 +268,5 @@ task listVersions {
 		println "To build for all versions: ./buildAll.sh (Linux/Mac) or buildAll.bat (Windows)"
 	}
 }
+
+

@@ -17,9 +17,9 @@ import com.peek.manager.constants.RequestConstants;
 import com.peek.utils.compat.ProfileCompat;
 import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.Map;
 import java.util.UUID;
@@ -65,7 +65,7 @@ public class PeekRequestManager extends BaseManager {
     /**
      * Sends a peek request from requester to target
      */
-    public PeekConstants.Result<PeekRequest> sendRequest(ServerPlayerEntity requester, ServerPlayerEntity target) {
+    public PeekConstants.Result<PeekRequest> sendRequest(ServerPlayer requester, ServerPlayer target) {
         try {
             // Validate request preconditions
             String validationError = RequestUtils.validateRequestPreconditions(
@@ -75,8 +75,8 @@ public class PeekRequestManager extends BaseManager {
                 return PeekConstants.Result.failure(validationError);
             }
             
-            UUID requesterId = requester.getUuid();
-            UUID targetId = target.getUuid();
+            UUID requesterId = requester.getUUID();
+            UUID targetId = target.getUUID();
             
             // Check if this is an invite response - if so, start session directly
             InviteManager inviteManager = ManagerRegistry.getInstance().getManager(InviteManager.class);
@@ -107,7 +107,7 @@ public class PeekRequestManager extends BaseManager {
             
             // If target has pending requests (waiting to confirm), don't allow new requests
             if (hasPendingRequestAsTarget(targetId)) {
-                return PeekConstants.Result.failure(Text.translatable("peek.message.target_processing_request").getString());
+                return PeekConstants.Result.failure(Component.translatable("peek.message.target_processing_request").getString());
             }
             
             // Get current requests for tracking
@@ -158,13 +158,13 @@ public class PeekRequestManager extends BaseManager {
     /**
      * Accepts a peek request
      */
-    public PeekConstants.Result<PeekRequest> acceptRequest(ServerPlayerEntity player, UUID requestId) {
+    public PeekConstants.Result<PeekRequest> acceptRequest(ServerPlayer player, UUID requestId) {
         PeekRequest request = activeRequests.get(requestId);
         if (request == null) {
             return PeekConstants.Result.failure(ErrorCodes.REQUEST_EXPIRED);
         }
         
-        if (!request.getTargetId().equals(player.getUuid())) {
+        if (!request.getTargetId().equals(player.getUUID())) {
             return PeekConstants.Result.failure(ErrorCodes.INSUFFICIENT_PERMISSIONS);
         }
         
@@ -183,7 +183,7 @@ public class PeekRequestManager extends BaseManager {
         // Start peek session first before modifying request state
         MinecraftServer server = ServerPlayerCompat.getServer(player);
         if (server != null) {
-            ServerPlayerEntity requester = server.getPlayerManager().getPlayer(request.getRequesterId());
+            ServerPlayer requester = server.getPlayerList().getPlayer(request.getRequesterId());
             if (requester != null) {
                 // Start peek session first
                 PeekSessionManager sessionManager = ManagerRegistry.getInstance().getManager(PeekSessionManager.class);
@@ -215,13 +215,13 @@ public class PeekRequestManager extends BaseManager {
     /**
      * Denies a peek request
      */
-    public PeekConstants.Result<PeekRequest> denyRequest(ServerPlayerEntity player, UUID requestId) {
+    public PeekConstants.Result<PeekRequest> denyRequest(ServerPlayer player, UUID requestId) {
         PeekRequest request = activeRequests.get(requestId);
         if (request == null) {
             return PeekConstants.Result.failure(ErrorCodes.REQUEST_EXPIRED);
         }
         
-        if (!request.getTargetId().equals(player.getUuid())) {
+        if (!request.getTargetId().equals(player.getUUID())) {
             return PeekConstants.Result.failure(ErrorCodes.INSUFFICIENT_PERMISSIONS);
         }
         
@@ -234,9 +234,9 @@ public class PeekRequestManager extends BaseManager {
         
         // Notify both players and get requester for command tree update
         MinecraftServer server = ServerPlayerCompat.getServer(player);
-        ServerPlayerEntity requester = null;
+        ServerPlayer requester = null;
         if (server != null) {
-            requester = server.getPlayerManager().getPlayer(request.getRequesterId());
+            requester = server.getPlayerList().getPlayer(request.getRequesterId());
             if (requester != null) {
                 notificationHandler.sendDeniedNotifications(requester, player, request);
             } else {
@@ -254,13 +254,13 @@ public class PeekRequestManager extends BaseManager {
     /**
      * Cancels a request by the requester
      */
-    public PeekConstants.Result<PeekRequest> cancelRequest(ServerPlayerEntity requester, UUID requestId) {
+    public PeekConstants.Result<PeekRequest> cancelRequest(ServerPlayer requester, UUID requestId) {
         PeekRequest request = activeRequests.get(requestId);
         if (request == null) {
             return PeekConstants.Result.failure(ErrorCodes.REQUEST_EXPIRED);
         }
         
-        if (!request.getRequesterId().equals(requester.getUuid())) {
+        if (!request.getRequesterId().equals(requester.getUUID())) {
             return PeekConstants.Result.failure(ErrorCodes.INSUFFICIENT_PERMISSIONS);
         }
         
@@ -273,9 +273,9 @@ public class PeekRequestManager extends BaseManager {
         
         // Notify both players
         MinecraftServer server = ServerPlayerCompat.getServer(requester);
-        ServerPlayerEntity target = null;
+        ServerPlayer target = null;
         if (server != null) {
-            target = server.getPlayerManager().getPlayer(request.getTargetId());
+            target = server.getPlayerList().getPlayer(request.getTargetId());
         }
         
         notificationHandler.sendCancelledNotifications(requester, target, request);
@@ -302,19 +302,19 @@ public class PeekRequestManager extends BaseManager {
     
     // sendRequestNotification method is now handled by NotificationHandler
     
-    private void scheduleAutoAccept(UUID requestId, ServerPlayerEntity target, int delaySeconds) {
+    private void scheduleAutoAccept(UUID requestId, ServerPlayer target, int delaySeconds) {
         int delayTicks = delaySeconds * PeekConstants.DEFAULT_STATIC_TICKS; // Convert seconds to ticks
         tickTaskManager.addTask(requestId, RequestConstants.TASK_TYPE_AUTO_ACCEPT, delayTicks, task -> {
             PeekRequest request = activeRequests.get(requestId);
             if (request != null && request.canAccept()) {
                 MinecraftServer server = getCurrentServer();
                 if (server != null) {
-                    ServerPlayerEntity currentTarget = server.getPlayerManager().getPlayer(request.getTargetId());
+                    ServerPlayer currentTarget = server.getPlayerList().getPlayer(request.getTargetId());
                     if (currentTarget != null) {
                         PeekConstants.Result<PeekRequest> result = acceptRequest(currentTarget, requestId);
                         if (result.isSuccess()) {
-                            currentTarget.sendMessage(Text.translatable("peek.message.auto_accept_completed")
-                                .formatted(Formatting.GREEN), false);
+                            currentTarget.sendSystemMessage(Component.translatable("peek.message.auto_accept_completed")
+                                .withStyle(ChatFormatting.GREEN), false);
                         }
                     }
                 }
@@ -479,12 +479,12 @@ public class PeekRequestManager extends BaseManager {
             return PeekConstants.Result.failure(ErrorCodes.INTERNAL_ERROR);
         }
         
-        ServerPlayerEntity requester = server.getPlayerManager().getPlayer(request.getRequesterId());
+        ServerPlayer requester = server.getPlayerList().getPlayer(request.getRequesterId());
         if (requester == null) {
             return PeekConstants.Result.failure(ErrorCodes.PLAYER_OFFLINE);
         }
         
-        UUID requesterId = requester.getUuid();
+        UUID requesterId = requester.getUUID();
         UUID targetId = request.getTargetId();
         
         // Check if already peeking (could have started another peek after sending request)
@@ -520,3 +520,4 @@ public class PeekRequestManager extends BaseManager {
         super.shutdown();
     }
 }
+

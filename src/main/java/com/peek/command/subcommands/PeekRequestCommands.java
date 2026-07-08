@@ -16,12 +16,12 @@ import com.peek.utils.ValidationUtils;
 import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.compat.TextEventCompat;
 import com.peek.utils.permissions.Permissions;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
@@ -30,70 +30,70 @@ import java.util.List;
  */
 public class PeekRequestCommands {
     
-    public static LiteralArgumentBuilder<ServerCommandSource> createPlayerCommand() {
-        return CommandManager.literal("player")
+    public static LiteralArgumentBuilder<CommandSourceStack> createPlayerCommand() {
+        return Commands.literal("player")
                 .requires(source -> ValidationUtils.canSendPeekRequestWithPermission(source, Permissions.Command.PEEK, 0))
-                .then(CommandManager.argument("target", EntityArgumentType.player())
+                .then(Commands.argument("target", EntityArgument.player())
                     .suggests(PeekSuggestions.PLAYER_SUGGESTIONS_EXCLUDING_SELF)
                     .executes(PeekRequestCommands::sendPeekRequest));
     }
     
-    public static LiteralArgumentBuilder<ServerCommandSource> createAcceptCommand() {
-        return CommandManager.literal("accept")
+    public static LiteralArgumentBuilder<CommandSourceStack> createAcceptCommand() {
+        return Commands.literal("accept")
                 .requires(source -> ValidationUtils.requiresPendingRequestWithPermission(source, Permissions.Command.ACCEPT))
                 .executes(PeekRequestCommands::acceptRequest)
-                .then(CommandManager.argument("requester", EntityArgumentType.player())
+                .then(Commands.argument("requester", EntityArgument.player())
                     .suggests(PeekSuggestions.PENDING_REQUEST_SUGGESTIONS)
                     .executes(PeekRequestCommands::acceptRequest));
     }
     
-    public static LiteralArgumentBuilder<ServerCommandSource> createDenyCommand() {
-        return CommandManager.literal("deny")
+    public static LiteralArgumentBuilder<CommandSourceStack> createDenyCommand() {
+        return Commands.literal("deny")
                 .requires(source -> ValidationUtils.requiresPendingRequestWithPermission(source, Permissions.Command.DENY))
                 .executes(PeekRequestCommands::denyRequest)
-                .then(CommandManager.argument("requester", EntityArgumentType.player())
+                .then(Commands.argument("requester", EntityArgument.player())
                     .suggests(PeekSuggestions.PENDING_REQUEST_SUGGESTIONS)
                     .executes(PeekRequestCommands::denyRequest));
     }
     
-    public static LiteralArgumentBuilder<ServerCommandSource> createCancelCommand() {
-        return CommandManager.literal("cancel")
+    public static LiteralArgumentBuilder<CommandSourceStack> createCancelCommand() {
+        return Commands.literal("cancel")
                 .requires(ValidationUtils::requiresPendingRequestAsRequester)
                 .executes(PeekRequestCommands::cancelRequest);
     }
     
-    public static LiteralArgumentBuilder<ServerCommandSource> createStopCommand() {
-        return CommandManager.literal("stop")
+    public static LiteralArgumentBuilder<CommandSourceStack> createStopCommand() {
+        return Commands.literal("stop")
                 .requires(source -> ValidationUtils.requiresActivePeekerWithPermission(source, Permissions.Command.STOP))
                 .executes(PeekRequestCommands::stopPeek);
     }
     
-    public static LiteralArgumentBuilder<ServerCommandSource> createWhoCommand() {
-        return CommandManager.literal("who")
+    public static LiteralArgumentBuilder<CommandSourceStack> createWhoCommand() {
+        return Commands.literal("who")
                 .requires(ValidationUtils::requiresBeingPeeked)
                 .executes(PeekRequestCommands::showWhoPeeking);
     }
     
-    public static LiteralArgumentBuilder<ServerCommandSource> createCancelPlayerCommand() {
-        return CommandManager.literal("cancel-player")
+    public static LiteralArgumentBuilder<CommandSourceStack> createCancelPlayerCommand() {
+        return Commands.literal("cancel-player")
                 .requires(ValidationUtils::requiresBeingPeeked)
-                .then(CommandManager.argument("peeker", EntityArgumentType.player())
+                .then(Commands.argument("peeker", EntityArgument.player())
                     .suggests(PeekSuggestions.CANCEL_PLAYER_SUGGESTIONS)
                     .executes(PeekRequestCommands::cancelSpecificPeek));
     }
     
-    private static int sendPeekRequest(CommandContext<ServerCommandSource> context) {
+    private static int sendPeekRequest(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            ServerPlayerEntity target = CommandUtils.getPlayerArgument(context, "target");
+            ServerPlayer target = CommandUtils.getPlayerArgument(context, "target");
             if (!ValidationUtils.validatePlayerNotNull(target, player) || target == null) return 0;
 
             // Check specifically for pending request conflicts first (for better error messages)
             PeekRequestManager requestManager = ManagerRegistry.getInstance().getManager(PeekRequestManager.class);
-            PeekRequest existingRequest = requestManager.getPendingRequestBetween(player.getUuid(), target.getUuid());
+            PeekRequest existingRequest = requestManager.getPendingRequestBetween(player.getUUID(), target.getUUID());
             if (existingRequest != null) {
                 long remainingTime = existingRequest.getRemainingSeconds();
-                Text message = Text.literal("§e" + Text.translatable("peek.error.request_pending_wait", target.getName().getString(), remainingTime).getString());
-                player.sendMessage(message, false);
+                Component message = Component.literal("§e" + Component.translatable("peek.error.request_pending_wait", target.getName().getString(), remainingTime).getString());
+                player.sendSystemMessage(message, false);
                 return 0;
             }
 
@@ -104,7 +104,7 @@ public class PeekRequestCommands {
         });
     }
     
-    private static int acceptRequest(CommandContext<ServerCommandSource> context) {
+    private static int acceptRequest(CommandContext<CommandSourceStack> context) {
         return CommandRequestProcessor.executeRequestCommand(context, "requester", (input) -> {
             PeekRequestManager requestManager = ManagerRegistry.getInstance().getManager(PeekRequestManager.class);
             PeekConstants.Result<PeekRequest> result = requestManager.acceptRequest(input.getPlayer(), input.getRequest().getId());
@@ -112,7 +112,7 @@ public class PeekRequestCommands {
         });
     }
     
-    private static int denyRequest(CommandContext<ServerCommandSource> context) {
+    private static int denyRequest(CommandContext<CommandSourceStack> context) {
         return CommandRequestProcessor.executeRequestCommand(context, "requester", (input) -> {
             PeekRequestManager requestManager = ManagerRegistry.getInstance().getManager(PeekRequestManager.class);
             PeekConstants.Result<PeekRequest> result = requestManager.denyRequest(input.getPlayer(), input.getRequest().getId());
@@ -121,12 +121,12 @@ public class PeekRequestCommands {
         });
     }
     
-    private static int cancelRequest(CommandContext<ServerCommandSource> context) {
+    private static int cancelRequest(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
             // Get the player's pending request as requester
-            PeekRequest request = ManagerRegistry.getInstance().getManager(PeekRequestManager.class).getPendingRequestAsRequester(player.getUuid());
+            PeekRequest request = ManagerRegistry.getInstance().getManager(PeekRequestManager.class).getPendingRequestAsRequester(player.getUUID());
             if (request == null) {
-                player.sendMessage(Text.literal("§c" + Text.translatable("peek.error.no_pending_request").getString()), false);
+                player.sendSystemMessage(Component.literal("§c" + Component.translatable("peek.error.no_pending_request").getString()), false);
                 return 0;
             }
             
@@ -140,21 +140,19 @@ public class PeekRequestCommands {
                 return 0;
             }
 
-            ServerPlayerEntity target = ServerPlayerCompat.getServer(player).getPlayerManager().getPlayer(request.getTargetId());
-            Text targetName = target != null ? target.getDisplayName() : Text.translatable("argument.player.unknown");
-            player.sendMessage(Text.translatable("peek.request_cancelled", targetName), false);
+            ServerPlayer target = ServerPlayerCompat.getServer(player).getPlayerList().getPlayer(request.getTargetId());
+            Component targetName = target != null ? target.getDisplayName() : Component.translatable("argument.player.unknown");
+            player.sendSystemMessage(Component.translatable("peek.request_cancelled", targetName), false);
             
             return 1;
         });
     }
     
-    private static int stopPeek(CommandContext<ServerCommandSource> context) {
+    private static int stopPeek(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            PeekConstants.Result<String> result = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopPeekSession(player.getUuid(), false, ServerPlayerCompat.getServer(player));
+            PeekConstants.Result<String> result = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopPeekSession(player.getUUID(), true, ServerPlayerCompat.getServer(player));
             
             if (result.isSuccess()) {
-                // Simple success confirmation for stop operation
-                player.sendMessage(Text.translatable("peek.message.ended_normal"), false);
                 return 1;
             } else {
                 return ValidationUtils.validateResult(result, player) ? 1 : 0;
@@ -162,53 +160,54 @@ public class PeekRequestCommands {
         });
     }
     
-    private static int showWhoPeeking(CommandContext<ServerCommandSource> context) {
+    private static int showWhoPeeking(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            List<PeekSession> targetingSessions = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).getSessionsTargeting(player.getUuid());
+            List<PeekSession> targetingSessions = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).getSessionsTargeting(player.getUUID());
             
             if (!ValidationUtils.validateCollectionNotEmpty(targetingSessions, 
-                    () -> Text.translatable("peek.message.no_one_peeking"), player)) {
+                    () -> Component.translatable("peek.message.no_one_peeking"), player)) {
                 return 1;
             }
             
-            MutableText message = Text.translatable("peek.message.who_peeking_header", targetingSessions.size());
+            MutableComponent message = Component.translatable("peek.message.who_peeking_header", targetingSessions.size());
             
             for (PeekSession session : targetingSessions) {
-                MutableText sessionInfo = Text.translatable("peek.command.who.session_info",
+                MutableComponent sessionInfo = Component.translatable("peek.command.who.session_info",
                     session.getPeekerName(), TextUtils.formatDuration(session.getDurationSeconds()));
                 
                 // Add cancel button
-                MutableText cancelButton = Text.translatable("peek.command.who.cancel_button")
-                    .styled(style -> style
+                MutableComponent cancelButton = Component.translatable("peek.command.who.cancel_button")
+                    .withStyle(style -> style
                         .withClickEvent(TextEventCompat.runCommand("/peek cancel-player " + session.getPeekerName()))
-                        .withHoverEvent(TextEventCompat.showText(Text.translatable("peek.message.manage.cancel.tip"))));
+                        .withHoverEvent(TextEventCompat.showText(Component.translatable("peek.message.manage.cancel.tip"))));
                 
                 message.append(sessionInfo.append(cancelButton));
             }
             
-            player.sendMessage(message, false);
+            player.sendSystemMessage(message, false);
             return 1;
         });
     }
     
-    private static int cancelSpecificPeek(CommandContext<ServerCommandSource> context) {
+    private static int cancelSpecificPeek(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            ServerPlayerEntity peekerPlayer = CommandUtils.getPlayerArgument(context, "peeker");
+            ServerPlayer peekerPlayer = CommandUtils.getPlayerArgument(context, "peeker");
             if (!ValidationUtils.validatePlayerNotNull(peekerPlayer, player) || peekerPlayer == null) return 0;
 
-            PeekSession session = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).getSessionByPeeker(peekerPlayer.getUuid());
-            if (!ValidationUtils.validateSessionRelationship(session, player.getUuid(), peekerPlayer.getDisplayName(), player)) {
+            PeekSession session = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).getSessionByPeeker(peekerPlayer.getUUID());
+            if (!ValidationUtils.validateSessionRelationship(session, player.getUUID(), peekerPlayer.getDisplayName(), player)) {
                 return 0;
             }
             
             PeekConstants.Result<String> result = ManagerRegistry.getInstance().getManager(PeekSessionManager.class)
-                .stopPeekSession(peekerPlayer.getUuid(), false, ServerPlayerCompat.getServer(player));
+                .stopPeekSession(
+                    peekerPlayer.getUUID(),
+                    false,
+                    ServerPlayerCompat.getServer(player),
+                    Component.translatable("peek.message.cancelled_by_target", player.getDisplayName())
+                );
             
             if (result.isSuccess()) {
-                // No need to confirm to player - they initiated the kick
-                // Only notify the peeker they were kicked
-                peekerPlayer.sendMessage(Text.translatable("peek.message.cancelled_by_target", 
-                    player.getDisplayName()), false);
                 return 1;
             } else {
                 return ValidationUtils.validateResult(result, player) ? 1 : 0;
@@ -216,3 +215,5 @@ public class PeekRequestCommands {
         });
     }
 }
+
+

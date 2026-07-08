@@ -1,14 +1,14 @@
 package com.peek.utils.compat;
 
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.Text;
-import net.minecraft.item.ItemStack;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
 import java.net.URI;
 
 /**
- * Compatibility layer for Text Events across different Minecraft versions.
+ * Compatibility layer for Component Events across different Minecraft versions.
  * Handles API differences between 1.21.4 and 1.21.5+.
  */
 public class TextEventCompat {
@@ -81,7 +81,7 @@ public class TextEventCompat {
     /**
      * Creates a show text hover event.
      */
-    public static HoverEvent showText(Text text) {
+    public static HoverEvent showText(Component text) {
         #if MC_VER >= 1215
         return new HoverEvent.ShowText(text);
         #else
@@ -93,7 +93,7 @@ public class TextEventCompat {
      * Creates a show text hover event from string.
      */
     public static HoverEvent showText(String text) {
-        return showText(Text.literal(text));
+        return showText(Component.literal(text));
     }
     
     /**
@@ -101,9 +101,11 @@ public class TextEventCompat {
      */
     public static HoverEvent showItem(ItemStack itemStack) {
         #if MC_VER >= 1215
-        return new HoverEvent.ShowItem(itemStack);
+        return new HoverEvent.ShowItem(net.minecraft.world.item.ItemStackTemplate.fromNonEmptyStack(itemStack));
         #else
         return new HoverEvent(HoverEvent.Action.SHOW_ITEM, new HoverEvent.ItemStackContent(itemStack));
         #endif
     }
 }
+
+

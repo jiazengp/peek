@@ -11,14 +11,14 @@ import com.peek.manager.PeekRequestManager;
 import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.permissions.PermissionChecker;
 import eu.pb4.playerdata.api.PlayerDataApi;
-import net.minecraft.entity.mob.HostileEntity;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.world.GameMode;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.GameType;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -36,9 +36,9 @@ public class ValidationUtils {
      * @param fallbackLevel Fallback permission level (0-4)
      * @return true if has permission, false otherwise
      */
-    public static boolean validatePermission(ServerCommandSource source, String permission, int fallbackLevel) {
+    public static boolean validatePermission(CommandSourceStack source, String permission, int fallbackLevel) {
         if (!PermissionChecker.hasPermission(source, permission, fallbackLevel)) {
-            source.sendError(Text.translatable("peek.error.no_permission").formatted(Formatting.RED));
+            source.sendFailure(Component.translatable("peek.error.no_permission").withStyle(ChatFormatting.RED));
             return false;
         }
         return true;
@@ -51,9 +51,9 @@ public class ValidationUtils {
      * @param fallbackLevel Fallback permission level (0-4)
      * @return true if has permission, false otherwise
      */
-    public static boolean validatePermission(ServerPlayerEntity player, String permission, int fallbackLevel) {
+    public static boolean validatePermission(ServerPlayer player, String permission, int fallbackLevel) {
         if (!PermissionChecker.hasPermission(player, permission, fallbackLevel)) {
-            player.sendMessage(Text.translatable("peek.error.no_permission").formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("peek.error.no_permission").withStyle(ChatFormatting.RED), false);
             return false;
         }
         return true;
@@ -66,7 +66,7 @@ public class ValidationUtils {
      * @param opLevel OP level required to bypass (typically 2-4)
      * @return true if player can bypass, false otherwise
      */
-    public static boolean canBypass(ServerPlayerEntity player, String bypassPermission, int opLevel) {
+    public static boolean canBypass(ServerPlayer player, String bypassPermission, int opLevel) {
         return PermissionChecker.hasPermission(player, bypassPermission, opLevel);
     }
     
@@ -77,7 +77,7 @@ public class ValidationUtils {
      * @param opLevel OP level required to bypass (typically 2-4)
      * @return true if source can bypass, false otherwise
      */
-    public static boolean canBypass(ServerCommandSource source, String bypassPermission, int opLevel) {
+    public static boolean canBypass(CommandSourceStack source, String bypassPermission, int opLevel) {
         return PermissionChecker.hasPermission(source, bypassPermission, opLevel);
     }
     
@@ -87,9 +87,9 @@ public class ValidationUtils {
      * @param executor Player who will receive error message
      * @return true if valid, false if null
      */
-    public static boolean validatePlayerNotNull(ServerPlayerEntity player, ServerPlayerEntity executor) {
+    public static boolean validatePlayerNotNull(ServerPlayer player, ServerPlayer executor) {
         if (player == null) {
-            executor.sendMessage(Text.translatable("peek.error.player_not_found").formatted(Formatting.RED), false);
+            executor.sendSystemMessage(Component.translatable("peek.error.player_not_found").withStyle(ChatFormatting.RED), false);
             return false;
         }
         return true;
@@ -101,10 +101,10 @@ public class ValidationUtils {
      * @param executor Player who will receive error message
      * @return the request if valid, null if invalid
      */
-    public static PeekRequest validatePendingRequest(java.util.UUID playerId, ServerPlayerEntity executor) {
+    public static PeekRequest validatePendingRequest(java.util.UUID playerId, ServerPlayer executor) {
         PeekRequest request = ManagerRegistry.getInstance().getManager(PeekRequestManager.class).getPendingRequestForPlayer(playerId);
         if (request == null) {
-            executor.sendMessage(Text.translatable("peek.error.request_expired").formatted(Formatting.RED), false);
+            executor.sendSystemMessage(Component.translatable("peek.error.request_expired").withStyle(ChatFormatting.RED), false);
             return null;
         }
         return request;
@@ -116,9 +116,9 @@ public class ValidationUtils {
      * @param executor Player who will receive error message
      * @return true if valid, false if invalid
      */
-    public static boolean validateHasPendingRequest(java.util.UUID playerId, ServerPlayerEntity executor) {
+    public static boolean validateHasPendingRequest(java.util.UUID playerId, ServerPlayer executor) {
         if (!ManagerRegistry.getInstance().getManager(PeekRequestManager.class).hasPendingRequestAsRequester(playerId)) {
-            executor.sendMessage(Text.translatable("peek.error.no_pending_request").formatted(Formatting.RED), false);
+            executor.sendSystemMessage(Component.translatable("peek.error.no_pending_request").withStyle(ChatFormatting.RED), false);
             return false;
         }
         return true;
@@ -130,9 +130,9 @@ public class ValidationUtils {
      * @param executor Player who will receive error message
      * @return true if valid, false if invalid
      */
-    public static boolean validatePlayerPeeking(java.util.UUID playerId, ServerPlayerEntity executor) {
+    public static boolean validatePlayerPeeking(java.util.UUID playerId, ServerPlayer executor) {
         if (!ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(playerId)) {
-            executor.sendMessage(Text.translatable("peek.manage.player_not_peeking").formatted(Formatting.RED), false);
+            executor.sendSystemMessage(Component.translatable("peek.manage.player_not_peeking").withStyle(ChatFormatting.RED), false);
             return false;
         }
         return true;
@@ -148,16 +148,16 @@ public class ValidationUtils {
      * @return true if valid, false if invalid
      */
     public static boolean validateBlacklistOperation(PlayerPeekData data, java.util.UUID targetId, 
-                                                   Text targetName, ServerPlayerEntity executor, boolean isAddOperation) {
+                                                   Component targetName, ServerPlayer executor, boolean isAddOperation) {
         boolean inBlacklist = data.blacklist().containsKey(targetId);
         
         if (isAddOperation && inBlacklist) {
-            executor.sendMessage(Text.translatable("peek.blacklist.already_exists", targetName)
-                .formatted(Formatting.YELLOW), false);
+            executor.sendSystemMessage(Component.translatable("peek.blacklist.already_exists", targetName)
+                .withStyle(ChatFormatting.YELLOW), false);
             return false;
         } else if (!isAddOperation && !inBlacklist) {
-            executor.sendMessage(Text.translatable("peek.blacklist.not_exists", targetName)
-                .formatted(Formatting.YELLOW), false);
+            executor.sendSystemMessage(Component.translatable("peek.blacklist.not_exists", targetName)
+                .withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
         
@@ -173,10 +173,10 @@ public class ValidationUtils {
      * @return true if not empty, false if empty
      */
     public static <T> boolean validateCollectionNotEmpty(Collection<T> collection, 
-                                                        Supplier<Text> emptyMessageSupplier,
-                                                        ServerPlayerEntity executor) {
+                                                        Supplier<Component> emptyMessageSupplier,
+                                                        ServerPlayer executor) {
         if (collection.isEmpty()) {
-            executor.sendMessage(emptyMessageSupplier.get(), false);
+            executor.sendSystemMessage(emptyMessageSupplier.get(), false);
             return false;
         }
         return true;
@@ -191,10 +191,10 @@ public class ValidationUtils {
      * @return true if not empty, false if empty
      */
     public static <T> boolean validateCollectionNotEmptyAdmin(Collection<T> collection, 
-                                                            Text errorMessage,
-                                                            net.minecraft.server.command.ServerCommandSource source) {
+                                                            Component errorMessage,
+                                                            net.minecraft.commands.CommandSourceStack source) {
         if (collection.isEmpty()) {
-            source.sendError(errorMessage);
+            source.sendFailure(errorMessage);
             return false;
         }
         return true;
@@ -207,9 +207,9 @@ public class ValidationUtils {
      * @param <T> Result type
      * @return true if successful, false if not
      */
-    public static <T> boolean validateResult(com.peek.manager.constants.PeekConstants.Result<T> result, ServerPlayerEntity executor) {
+    public static <T> boolean validateResult(com.peek.manager.constants.PeekConstants.Result<T> result, ServerPlayer executor) {
         if (!result.isSuccess()) {
-            executor.sendMessage(CommandUtils.getErrorMessage(result.getError()), false);
+            executor.sendSystemMessage(CommandUtils.getErrorMessage(result.getError()), false);
             return false;
         }
         return true;
@@ -224,11 +224,11 @@ public class ValidationUtils {
      * @return true if valid, false if invalid
      */
     public static boolean validateSessionRelationship(com.peek.data.peek.PeekSession session, 
-                                                    java.util.UUID targetId, Text peekerName, 
-                                                    ServerPlayerEntity executor) {
+                                                    java.util.UUID targetId, Component peekerName, 
+                                                    ServerPlayer executor) {
         if (session == null || !session.getTargetId().equals(targetId)) {
-            executor.sendMessage(Text.translatable("peek.message.player_not_peeking", peekerName)
-                .formatted(Formatting.RED), false);
+            executor.sendSystemMessage(Component.translatable("peek.message.player_not_peeking", peekerName)
+                .withStyle(ChatFormatting.RED), false);
             return false;
         }
         return true;
@@ -243,8 +243,8 @@ public class ValidationUtils {
      * @param opLevel minimum OP level
      * @return true if requirements met
      */
-    public static boolean requiresPlayerWithPermission(ServerCommandSource source, String permission, int opLevel) {
-        return PermissionChecker.hasPermission(source, permission, opLevel) && source.isExecutedByPlayer();
+    public static boolean requiresPlayerWithPermission(CommandSourceStack source, String permission, int opLevel) {
+        return PermissionChecker.hasPermission(source, permission, opLevel) && source.isPlayer();
     }
     
     /**
@@ -254,12 +254,12 @@ public class ValidationUtils {
      * @param opLevel minimum OP level
      * @return true if player is peeking and has permission
      */
-    public static boolean requiresActivePeeker(ServerCommandSource source, String permission, int opLevel) {
+    public static boolean requiresActivePeeker(CommandSourceStack source, String permission, int opLevel) {
         if (!requiresPlayerWithPermission(source, permission, opLevel)) {
             return false;
         }
         try {
-            return ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(source.getPlayerOrThrow().getUuid());
+            return ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(source.getPlayerOrException().getUUID());
         } catch (Exception e) {
             PeekMod.LOGGER.error(e.getMessage());
             return false;
@@ -271,12 +271,12 @@ public class ValidationUtils {
      * @param source command source
      * @return true if player is being peeked
      */
-    public static boolean requiresBeingPeeked(ServerCommandSource source) {
-        if (!source.isExecutedByPlayer()) {
+    public static boolean requiresBeingPeeked(CommandSourceStack source) {
+        if (!source.isPlayer()) {
             return false;
         }
         try {
-            return !ManagerRegistry.getInstance().getManager(PeekSessionManager.class).getSessionsTargeting(source.getPlayerOrThrow().getUuid()).isEmpty();
+            return !ManagerRegistry.getInstance().getManager(PeekSessionManager.class).getSessionsTargeting(source.getPlayerOrException().getUUID()).isEmpty();
         } catch (Exception e) {
             PeekMod.LOGGER.error(e.getMessage());
             return false;
@@ -290,12 +290,12 @@ public class ValidationUtils {
      * @param opLevel minimum OP level
      * @return true if player has pending request and permission
      */
-    public static boolean requiresPendingRequest(ServerCommandSource source, String permission, int opLevel) {
+    public static boolean requiresPendingRequest(CommandSourceStack source, String permission, int opLevel) {
         if (!requiresPlayerWithPermission(source, permission, opLevel)) {
             return false;
         }
         try {
-            return ManagerRegistry.getInstance().getManager(PeekRequestManager.class).getPendingRequestForPlayer(source.getPlayerOrThrow().getUuid()) != null;
+            return ManagerRegistry.getInstance().getManager(PeekRequestManager.class).getPendingRequestForPlayer(source.getPlayerOrException().getUUID()) != null;
         } catch (Exception e) {
             PeekMod.LOGGER.error(e.getMessage());
             return false;
@@ -307,12 +307,12 @@ public class ValidationUtils {
      * @param source command source
      * @return true if player has pending request as requester
      */
-    public static boolean requiresPendingRequestAsRequester(ServerCommandSource source) {
-        if (!source.isExecutedByPlayer()) {
+    public static boolean requiresPendingRequestAsRequester(CommandSourceStack source) {
+        if (!source.isPlayer()) {
             return false;
         }
         try {
-            return ManagerRegistry.getInstance().getManager(PeekRequestManager.class).hasPendingRequestAsRequester(source.getPlayerOrThrow().getUuid());
+            return ManagerRegistry.getInstance().getManager(PeekRequestManager.class).hasPendingRequestAsRequester(source.getPlayerOrException().getUUID());
         } catch (Exception e) {
             PeekMod.LOGGER.error(e.getMessage());
             return false;
@@ -324,12 +324,12 @@ public class ValidationUtils {
      * @param source command source
      * @return true if player has pending request
      */
-    public static boolean hasPendingRequest(ServerCommandSource source) {
-        if (!source.isExecutedByPlayer()) {
+    public static boolean hasPendingRequest(CommandSourceStack source) {
+        if (!source.isPlayer()) {
             return false;
         }
         try {
-            return ManagerRegistry.getInstance().getManager(PeekRequestManager.class).getPendingRequestForPlayer(source.getPlayerOrThrow().getUuid()) != null;
+            return ManagerRegistry.getInstance().getManager(PeekRequestManager.class).getPendingRequestForPlayer(source.getPlayerOrException().getUUID()) != null;
         } catch (Exception e) {
             PeekMod.LOGGER.error(e.getMessage());
             return false;
@@ -341,12 +341,12 @@ public class ValidationUtils {
      * @param source command source
      * @return true if player is peeking
      */
-    public static boolean isPlayerPeeking(ServerCommandSource source) {
-        if (!source.isExecutedByPlayer()) {
+    public static boolean isPlayerPeeking(CommandSourceStack source) {
+        if (!source.isPlayer()) {
             return false;
         }
         try {
-            return ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(source.getPlayerOrThrow().getUuid());
+            return ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(source.getPlayerOrException().getUUID());
         } catch (Exception e) {
             PeekMod.LOGGER.error(e.getMessage());
             return false;
@@ -358,7 +358,7 @@ public class ValidationUtils {
      * @param player Player to validate
      * @return true if valid, false otherwise
      */
-    public static boolean validateAcceptPermission(ServerPlayerEntity player) {
+    public static boolean validateAcceptPermission(ServerPlayer player) {
         return validatePermission(player, com.peek.utils.permissions.Permissions.Command.ACCEPT, 0);
     }
     
@@ -367,7 +367,7 @@ public class ValidationUtils {
      * @param player Player to validate
      * @return true if valid, false otherwise
      */
-    public static boolean validateDenyPermission(ServerPlayerEntity player) {
+    public static boolean validateDenyPermission(ServerPlayer player) {
         return validatePermission(player, com.peek.utils.permissions.Permissions.Command.DENY, 0);
     }
     
@@ -376,7 +376,7 @@ public class ValidationUtils {
      * @param player Player to validate
      * @return true if valid, false otherwise
      */
-    public static boolean validateStopPermission(ServerPlayerEntity player) {
+    public static boolean validateStopPermission(ServerPlayer player) {
         return validatePermission(player, com.peek.utils.permissions.Permissions.Command.STOP, 0);
     }
     
@@ -386,14 +386,14 @@ public class ValidationUtils {
      * @param permission required permission  
      * @return true if player has pending request and permission (or is basic user)
      */
-    public static boolean requiresPendingRequestWithPermission(ServerCommandSource source, String permission) {
-        if (!source.isExecutedByPlayer()) {
+    public static boolean requiresPendingRequestWithPermission(CommandSourceStack source, String permission) {
+        if (!source.isPlayer()) {
             return false;
         }
         try {
-            ServerPlayerEntity player = source.getPlayerOrThrow();
+            ServerPlayer player = source.getPlayerOrException();
             // Check if has pending request
-            boolean hasPendingRequest = ManagerRegistry.getInstance().getManager(PeekRequestManager.class).getPendingRequestForPlayer(player.getUuid()) != null;
+            boolean hasPendingRequest = ManagerRegistry.getInstance().getManager(PeekRequestManager.class).getPendingRequestForPlayer(player.getUUID()) != null;
             // Use very lenient permission check - basic users (permission level 0) can use accept/deny
             boolean hasPermission = PermissionChecker.hasPermission(source, permission, 0);
             return hasPendingRequest && hasPermission;
@@ -409,14 +409,14 @@ public class ValidationUtils {
      * @param permission required permission
      * @return true if player is peeking and has permission (or is basic user)
      */
-    public static boolean requiresActivePeekerWithPermission(ServerCommandSource source, String permission) {
-        if (!source.isExecutedByPlayer()) {
+    public static boolean requiresActivePeekerWithPermission(CommandSourceStack source, String permission) {
+        if (!source.isPlayer()) {
             return false;
         }
         try {
-            ServerPlayerEntity player = source.getPlayerOrThrow();
+            ServerPlayer player = source.getPlayerOrException();
             // Check if is currently peeking
-            boolean isPeeking = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(player.getUuid());
+            boolean isPeeking = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(player.getUUID());
             // Use very lenient permission check - basic users (permission level 0) can use stop
             boolean hasPermission = PermissionChecker.hasPermission(source, permission, 0);
             return isPeeking && hasPermission;
@@ -433,12 +433,12 @@ public class ValidationUtils {
      * @param opLevel minimum OP level
      * @return true if player has blacklisted players and permission
      */
-    public static boolean requiresNonEmptyBlacklist(ServerCommandSource source, String permission, int opLevel) {
+    public static boolean requiresNonEmptyBlacklist(CommandSourceStack source, String permission, int opLevel) {
         if (!requiresPlayerWithPermission(source, permission, opLevel)) {
             return false;
         }
         try {
-            ServerPlayerEntity player = source.getPlayerOrThrow();
+            ServerPlayer player = source.getPlayerOrException();
             PlayerPeekData data = eu.pb4.playerdata.api.PlayerDataApi.getCustomDataFor(player, 
                 com.peek.data.PeekDataStorage.PLAYER_PEEK_DATA_STORAGE);
             return data != null && !data.blacklist().isEmpty();
@@ -457,13 +457,13 @@ public class ValidationUtils {
      * @param opLevel minimum OP level
      * @return true if player can send peek requests and has permission
      */
-    public static boolean canSendPeekRequestWithPermission(ServerCommandSource source, String permission, int opLevel) {
+    public static boolean canSendPeekRequestWithPermission(CommandSourceStack source, String permission, int opLevel) {
         if (!requiresPlayerWithPermission(source, permission, opLevel)) {
             return false;
         }
         try {
-            ServerPlayerEntity player = source.getPlayerOrThrow();
-            return canPlayerSendPeekRequest(player.getUuid());
+            ServerPlayer player = source.getPlayerOrException();
+            return canPlayerSendPeekRequest(player.getUUID());
         } catch (Exception e) {
             PeekMod.LOGGER.error(e.getMessage());
             return false;
@@ -474,7 +474,7 @@ public class ValidationUtils {
      * @deprecated Use canSendPeekRequestWithPermission instead. Name was misleading.
      */
     @Deprecated
-    public static boolean requiresNoPendingRequests(ServerCommandSource source, String permission, int opLevel) {
+    public static boolean requiresNoPendingRequests(CommandSourceStack source, String permission, int opLevel) {
         return canSendPeekRequestWithPermission(source, permission, opLevel);
     }
     
@@ -554,9 +554,9 @@ public class ValidationUtils {
      * @param target Target player entity
      * @return true if request can be sent
      */
-    public static boolean canSendPeekRequestTo(ServerPlayerEntity requester, ServerPlayerEntity target) {
-        UUID requesterId = requester.getUuid();
-        UUID targetId = target.getUuid();
+    public static boolean canSendPeekRequestTo(ServerPlayer requester, ServerPlayer target) {
+        UUID requesterId = requester.getUUID();
+        UUID targetId = target.getUUID();
         
         // Check if requester can send requests
         if (!canPlayerSendPeekRequest(requesterId)) {
@@ -600,9 +600,9 @@ public class ValidationUtils {
      * @param player The player who wants to start peek
      * @return true if safe or no check required, false if unsafe
      */
-    public static boolean validateNoHostileMobsAround(ServerPlayerEntity player) {
+    public static boolean validateNoHostileMobsAround(ServerPlayer player) {
         double radius = ModConfigManager.getNoMobsRadius();
-        if (radius <= 0 || PermissionChecker.isOp(player) || com.peek.utils.compat.PlayerCompat.getGameMode(player) == GameMode.CREATIVE || com.peek.utils.compat.PlayerCompat.getGameMode(player) == GameMode.SPECTATOR) {
+        if (radius <= 0 || PermissionChecker.isOp(player) || com.peek.utils.compat.PlayerCompat.getGameMode(player) == GameType.CREATIVE || com.peek.utils.compat.PlayerCompat.getGameMode(player) == GameType.SPECTATOR) {
             return true; // No check required
         }
         
@@ -612,11 +612,11 @@ public class ValidationUtils {
         }
         
         // Check for hostile mobs in radius around player
-        BlockPos pos = player.getBlockPos();
-        Box box = Box.of(pos.toCenterPos(), radius * 2, Math.min(radius, 5) * 2, radius * 2);
+        BlockPos pos = player.blockPosition();
+        AABB box = AABB.ofSize(net.minecraft.world.phys.Vec3.atCenterOf(pos), radius * 2, Math.min(radius, 5) * 2, radius * 2);
 
         // Search for hostile monsters
-        return ServerPlayerCompat.getWorld(player).getEntitiesByClass(HostileEntity.class, box,
+        return ServerPlayerCompat.getWorld(player).getEntitiesOfClass(Monster.class, box,
             (entity) -> entity.isAlive() && !entity.isRemoved()).isEmpty();
     }
     
@@ -626,7 +626,7 @@ public class ValidationUtils {
      * @param target The target player
      * @return true if distance is valid or players in different dimensions
      */
-    public static boolean validateMinimumDistance(ServerPlayerEntity requester, ServerPlayerEntity target) {
+    public static boolean validateMinimumDistance(ServerPlayer requester, ServerPlayer target) {
         double minDistance = ModConfigManager.getMinSameDimensionDistance();
         if (minDistance <= 0 || PermissionChecker.isOp(requester)) {
             return true; // No distance limit
@@ -642,3 +642,5 @@ public class ValidationUtils {
         return distance >= minDistance;
     }
 }
+
+

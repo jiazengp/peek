@@ -1,7 +1,7 @@
 package com.peek.utils.compat;
 
 import com.mojang.authlib.GameProfile;
-import net.minecraft.component.type.ProfileComponent;
+import net.minecraft.world.item.component.ResolvableProfile;
 
 import java.util.Optional;
 
@@ -12,10 +12,10 @@ import java.util.Optional;
 public class ProfileCompat {
 
     /**
-     * Creates a ProfileComponent from a GameProfile.
+     * Creates a ResolvableProfile from a GameProfile.
      * In 1.21.9+, the constructor signature changed.
      */
-    public static ProfileComponent createProfileComponent(GameProfile gameProfile) {
+    public static ResolvableProfile createProfileComponent(GameProfile gameProfile) {
         if (gameProfile == null) {
             throw new IllegalArgumentException("GameProfile cannot be null");
         }
@@ -23,9 +23,9 @@ public class ProfileCompat {
         if (gameProfile.id() == null) {
             throw new IllegalArgumentException("GameProfile ID cannot be null");
         }
-        return ProfileComponent.ofDynamic(gameProfile.id());
+        return ResolvableProfile.createResolved(gameProfile);
         #else
-        return new ProfileComponent(gameProfile);
+        return new ResolvableProfile(gameProfile);
         #endif
     }
 
@@ -41,3 +41,5 @@ public class ProfileCompat {
         #endif
     }
 }
+
+

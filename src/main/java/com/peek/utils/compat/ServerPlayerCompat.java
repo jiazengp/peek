@@ -1,49 +1,52 @@
 package com.peek.utils.compat;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
 
 /**
- * Compatibility layer for ServerPlayerEntity APIs across different Minecraft versions.
+ * Compatibility layer for ServerPlayer APIs across different Minecraft versions.
  * Handles API differences in 1.21.9+.
  */
 public class ServerPlayerCompat {
 
     /**
-     * Gets the MinecraftServer from a ServerPlayerEntity.
+     * Gets the MinecraftServer from a ServerPlayer.
      * In 1.21.9+, getServer() was removed, use getEntityWorld().getServer() instead.
      */
-    public static MinecraftServer getServer(ServerPlayerEntity player) {
+    public static MinecraftServer getServer(ServerPlayer player) {
         #if MC_VER >= 1219
-        return player.getEntityWorld().getServer();
+        return player.level().getServer();
         #else
         return player.getServer();
         #endif
     }
 
     /**
-     * Gets the ServerWorld from a ServerPlayerEntity.
+     * Gets the ServerLevel from a ServerPlayer.
      * In 1.21.9+, getWorld() was replaced with getEntityWorld().
      */
-    public static ServerWorld getWorld(ServerPlayerEntity player) {
+    public static ServerLevel getWorld(ServerPlayer player) {
         #if MC_VER >= 1219
-        return player.getEntityWorld();
+        return player.level();
         #else
-        return (ServerWorld) player.getWorld();
+        return (ServerLevel) player.getWorld();
         #endif
     }
 
     /**
-     * Gets the position of a ServerPlayerEntity.
+     * Gets the position of a ServerPlayer.
      * In 1.21.9+, getPos() was replaced with getEntityPos().
      */
-    public static Vec3d getPos(ServerPlayerEntity player) {
+    public static Vec3 getPos(ServerPlayer player) {
         #if MC_VER >= 1219
-        return player.getEntityPos();
+        return player.position();
         #else
         return player.getPos();
         #endif
     }
 }
+
+
+

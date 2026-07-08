@@ -17,12 +17,12 @@ import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.permissions.PermissionChecker;
 import com.peek.utils.permissions.Permissions;
 import eu.pb4.playerdata.api.PlayerDataApi;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
 
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,8 +37,8 @@ public class PeekSettingsCommands {
     private static final BlacklistCommandBuilder blacklistBuilder = new BlacklistCommandBuilder();
     private static final WhitelistCommandBuilder whitelistBuilder = new WhitelistCommandBuilder();
     
-    public static LiteralArgumentBuilder<ServerCommandSource> createSettingsCommand() {
-        return CommandManager.literal("settings")
+    public static LiteralArgumentBuilder<CommandSourceStack> createSettingsCommand() {
+        return Commands.literal("settings")
                 .requires(source -> PermissionChecker.hasPermission(source, Permissions.Command.SETTINGS, 0))
                 .then(createPrivateSettingCommand())
                 .then(createAutoAcceptSettingCommand())
@@ -46,31 +46,31 @@ public class PeekSettingsCommands {
                 .then(createWhitelistSettingCommand());
     }
     
-    private static LiteralArgumentBuilder<ServerCommandSource> createPrivateSettingCommand() {
-        return CommandManager.literal("private")
+    private static LiteralArgumentBuilder<CommandSourceStack> createPrivateSettingCommand() {
+        return Commands.literal("private")
                 .requires(source -> PermissionChecker.hasPermission(source, Permissions.Command.SETTINGS_PRIVATE, 0))
                 .executes(PeekSettingsCommands::togglePrivateMode)
-                .then(CommandManager.literal("on").executes(ctx -> setPrivateMode(ctx, true)))
-                .then(CommandManager.literal("off").executes(ctx -> setPrivateMode(ctx, false)));
+                .then(Commands.literal("on").executes(ctx -> setPrivateMode(ctx, true)))
+                .then(Commands.literal("off").executes(ctx -> setPrivateMode(ctx, false)));
     }
     
-    private static LiteralArgumentBuilder<ServerCommandSource> createAutoAcceptSettingCommand() {
-        return CommandManager.literal("auto-accept")
+    private static LiteralArgumentBuilder<CommandSourceStack> createAutoAcceptSettingCommand() {
+        return Commands.literal("auto-accept")
                 .requires(source -> PermissionChecker.hasPermission(source, Permissions.Command.SETTINGS_AUTO_ACCEPT, 0))
                 .executes(PeekSettingsCommands::toggleAutoAccept)
-                .then(CommandManager.literal("on").executes(ctx -> setAutoAccept(ctx, true)))
-                .then(CommandManager.literal("off").executes(ctx -> setAutoAccept(ctx, false)));
+                .then(Commands.literal("on").executes(ctx -> setAutoAccept(ctx, true)))
+                .then(Commands.literal("off").executes(ctx -> setAutoAccept(ctx, false)));
     }
     
-    private static LiteralArgumentBuilder<ServerCommandSource> createBlacklistSettingCommand() {
+    private static LiteralArgumentBuilder<CommandSourceStack> createBlacklistSettingCommand() {
         return blacklistBuilder.createCommand();
     }
     
-    private static LiteralArgumentBuilder<ServerCommandSource> createWhitelistSettingCommand() {
+    private static LiteralArgumentBuilder<CommandSourceStack> createWhitelistSettingCommand() {
         return whitelistBuilder.createCommand();
     }
     
-    private static int togglePrivateMode(CommandContext<ServerCommandSource> context) {
+    private static int togglePrivateMode(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
             PlayerPeekData data = getOrCreatePlayerData(player);
             boolean currentState = data.privateMode();
@@ -82,11 +82,11 @@ public class PeekSettingsCommands {
             
             // Send simple success confirmation for toggle operations
             String key = newState ? "peek.settings.private_toggled_on" : "peek.settings.private_toggled_off";
-            player.sendMessage(Text.translatable(key), false);
+            player.sendSystemMessage(Component.translatable(key), false);
             
             // Notify if auto-accept was disabled
             if (newState && data.autoAccept()) {
-                player.sendMessage(Text.translatable("peek.settings.auto_accept_disabled_by_private"), false);
+                player.sendSystemMessage(Component.translatable("peek.settings.auto_accept_disabled_by_private"), false);
             }
             
             // If enabling private mode, clear all sessions targeting this player
@@ -98,7 +98,7 @@ public class PeekSettingsCommands {
         });
     }
     
-    private static int setPrivateMode(CommandContext<ServerCommandSource> context, boolean enabled) {
+    private static int setPrivateMode(CommandContext<CommandSourceStack> context, boolean enabled) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
             PlayerPeekData data = getOrCreatePlayerData(player);
 
@@ -106,11 +106,11 @@ public class PeekSettingsCommands {
             PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, data);
             
             String key = enabled ? "peek.settings.private_enabled" : "peek.settings.private_disabled";
-            player.sendMessage(Text.translatable(key), false);
+            player.sendSystemMessage(Component.translatable(key), false);
             
             // Notify if auto-accept was disabled
             if (enabled && data.autoAccept()) {
-                player.sendMessage(Text.translatable("peek.settings.auto_accept_disabled_by_private"), false);
+                player.sendSystemMessage(Component.translatable("peek.settings.auto_accept_disabled_by_private"), false);
             }
             
             // If enabling private mode, clear all sessions targeting this player
@@ -126,8 +126,8 @@ public class PeekSettingsCommands {
     /**
      * Clears all active peek sessions targeting the specified player (when they enable private mode)
      */
-    private static void clearAllSessionsTargetingPlayer(ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
+    private static void clearAllSessionsTargetingPlayer(ServerPlayer player) {
+        UUID playerId = player.getUUID();
         PeekSessionManager sessionManager = ManagerRegistry.getInstance().getManager(PeekSessionManager.class);
         
         // Get all sessions targeting this player
@@ -155,22 +155,16 @@ public class PeekSettingsCommands {
         for (UUID peekerId : peekerIds) {
             try {
                 // Stop the session
-                PeekConstants.Result<String> result = sessionManager.stopPeekSession(peekerId, false, ServerPlayerCompat.getServer(player));
+                PeekConstants.Result<String> result = sessionManager.stopPeekSession(
+                    peekerId,
+                    false,
+                    ServerPlayerCompat.getServer(player),
+                    Component.translatable("peek.message.ended_private_mode", player.getDisplayName())
+                );
 
                 if (result.isSuccess()) {
                     successfullyCleared++;
                     PeekMod.LOGGER.debug("Successfully stopped session for peeker {}", peekerId);
-
-                    // Notify the peeker about why their session was ended
-                    if (ServerPlayerCompat.getServer(player) == null) {
-                        return;
-                    }
-
-                    ServerPlayerEntity peeker = ServerPlayerCompat.getServer(player).getPlayerManager().getPlayer(peekerId);
-                    if (peeker != null) {
-                        Text message = Text.translatable("peek.message.ended_private_mode", player.getDisplayName());
-                        peeker.sendMessage(message, false);
-                    }
                 } else {
                     PeekMod.LOGGER.warn("Failed to stop session for peeker {}: {}", peekerId, result.getError());
                 }
@@ -181,9 +175,9 @@ public class PeekSettingsCommands {
         
         // Notify the player about how many sessions were cleared
         if (successfullyCleared > 0) {
-            Text message = Text.translatable("peek.message.private_mode_cleared_sessions", successfullyCleared)
-                .formatted(Formatting.YELLOW);
-            player.sendMessage(message, false);
+            Component message = Component.translatable("peek.message.private_mode_cleared_sessions", successfullyCleared)
+                .withStyle(ChatFormatting.YELLOW);
+            player.sendSystemMessage(message, false);
             
             PeekMod.LOGGER.debug("Successfully cleared {} out of {} sessions targeting {}",
                 successfullyCleared, targetingSessions.size(), ProfileCompat.getName(player.getGameProfile()));
@@ -193,7 +187,7 @@ public class PeekSettingsCommands {
         }
     }
     
-    private static int toggleAutoAccept(CommandContext<ServerCommandSource> context) {
+    private static int toggleAutoAccept(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
             PlayerPeekData data = getOrCreatePlayerData(player);
             boolean currentState = data.autoAccept();
@@ -205,15 +199,15 @@ public class PeekSettingsCommands {
             
             // Send simple success confirmation for toggle operations
             String key = newState ? "peek.settings.auto_accept_toggled_on" : "peek.settings.auto_accept_toggled_off";
-            player.sendMessage(Text.translatable(key), false);
+            player.sendSystemMessage(Component.translatable(key), false);
             
             // Notify if private mode was disabled
             if (newState && data.privateMode()) {
-                player.sendMessage(Text.translatable("peek.settings.private_disabled_by_auto_accept"), false);
+                player.sendSystemMessage(Component.translatable("peek.settings.private_disabled_by_auto_accept"), false);
             }
             
             if (newState) {
-                player.sendMessage(Text.translatable("peek.settings.auto_accept_info", 
+                player.sendSystemMessage(Component.translatable("peek.settings.auto_accept_info", 
                     com.peek.config.ModConfigManager.getAutoAcceptDelaySeconds()), false);
             }
             
@@ -221,22 +215,22 @@ public class PeekSettingsCommands {
         });
     }
     
-    private static int setAutoAccept(CommandContext<ServerCommandSource> context, boolean enabled) {
+    private static int setAutoAccept(CommandContext<CommandSourceStack> context, boolean enabled) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
             PlayerPeekData data = getOrCreatePlayerData(player);
             data = data.withAutoAccept(enabled);
             PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, data);
             
             String key = enabled ? "peek.settings.auto_accept_enabled" : "peek.settings.auto_accept_disabled";
-            player.sendMessage(Text.translatable(key), false);
+            player.sendSystemMessage(Component.translatable(key), false);
             
             // Notify if private mode was disabled
             if (enabled && data.privateMode()) {
-                player.sendMessage(Text.translatable("peek.settings.private_disabled_by_auto_accept"), false);
+                player.sendSystemMessage(Component.translatable("peek.settings.private_disabled_by_auto_accept"), false);
             }
             
             if (enabled) {
-                player.sendMessage(Text.translatable("peek.settings.auto_accept_info", 
+                player.sendSystemMessage(Component.translatable("peek.settings.auto_accept_info", 
                     com.peek.config.ModConfigManager.getAutoAcceptDelaySeconds()), false);
             }
             
@@ -246,7 +240,9 @@ public class PeekSettingsCommands {
     
     
     // Helper method
-    private static PlayerPeekData getOrCreatePlayerData(ServerPlayerEntity player) {
+    private static PlayerPeekData getOrCreatePlayerData(ServerPlayer player) {
         return PlayerPeekData.getOrCreate(player);
     }
 }
+
+

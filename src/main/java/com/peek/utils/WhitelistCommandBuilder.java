@@ -3,7 +3,7 @@ package com.peek.utils;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.peek.command.suggestion.PeekSuggestions;
 import com.peek.utils.permissions.Permissions;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.commands.CommandSourceStack;
 
 /**
  * Concrete implementation for building whitelist commands
@@ -43,12 +43,13 @@ public class WhitelistCommandBuilder extends AbstractListCommandBuilder {
     }
     
     @Override
-    protected SuggestionProvider<ServerCommandSource> getAddSuggestions() {
+    protected SuggestionProvider<CommandSourceStack> getAddSuggestions() {
         return PeekSuggestions.WHITELIST_ADD_SUGGESTIONS;
     }
     
     @Override
-    protected SuggestionProvider<ServerCommandSource> getRemoveSuggestions() {
+    protected SuggestionProvider<CommandSourceStack> getRemoveSuggestions() {
         return PeekSuggestions.WHITELIST_REMOVE_SUGGESTIONS;
     }
 }
+

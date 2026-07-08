@@ -3,9 +3,9 @@ package com.peek.utils;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.peek.utils.permissions.PermissionChecker;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
 
 /**
  * Abstract base class for building player list commands (blacklist/whitelist)
@@ -53,20 +53,20 @@ public abstract class AbstractListCommandBuilder {
      * Gets the suggestion provider for add operations
      * @return Suggestion provider for valid players to add
      */
-    protected abstract SuggestionProvider<ServerCommandSource> getAddSuggestions();
+    protected abstract SuggestionProvider<CommandSourceStack> getAddSuggestions();
     
     /**
      * Gets the suggestion provider for remove operations
      * @return Suggestion provider for players in the list
      */
-    protected abstract SuggestionProvider<ServerCommandSource> getRemoveSuggestions();
+    protected abstract SuggestionProvider<CommandSourceStack> getRemoveSuggestions();
     
     /**
      * Creates the complete command structure for this list type
      * @return The command builder
      */
-    public LiteralArgumentBuilder<ServerCommandSource> createCommand() {
-        return CommandManager.literal(getCommandName())
+    public LiteralArgumentBuilder<CommandSourceStack> createCommand() {
+        return Commands.literal(getCommandName())
                 .requires(source -> PermissionChecker.hasPermission(source, getPermissionBase(), 0))
                 .executes(context -> getManager().handleListCommand(context)) // Default behavior: show list
                 .then(createAddSubcommand())
@@ -77,10 +77,10 @@ public abstract class AbstractListCommandBuilder {
     /**
      * Creates the add subcommand
      */
-    private LiteralArgumentBuilder<ServerCommandSource> createAddSubcommand() {
-        return CommandManager.literal("add")
+    private LiteralArgumentBuilder<CommandSourceStack> createAddSubcommand() {
+        return Commands.literal("add")
                 .requires(source -> PermissionChecker.hasPermission(source, getAddPermission(), 0))
-                .then(CommandManager.argument("player", EntityArgumentType.player())
+                .then(Commands.argument("player", EntityArgument.player())
                     .suggests(getAddSuggestions())
                     .executes(context -> getManager().handleAddCommand(context)));
     }
@@ -88,10 +88,10 @@ public abstract class AbstractListCommandBuilder {
     /**
      * Creates the remove subcommand
      */
-    private LiteralArgumentBuilder<ServerCommandSource> createRemoveSubcommand() {
-        return CommandManager.literal("remove")
+    private LiteralArgumentBuilder<CommandSourceStack> createRemoveSubcommand() {
+        return Commands.literal("remove")
                 .requires(source -> PermissionChecker.hasPermission(source, getRemovePermission(), 0))
-                .then(CommandManager.argument("player", EntityArgumentType.player())
+                .then(Commands.argument("player", EntityArgument.player())
                     .suggests(getRemoveSuggestions())
                     .executes(context -> getManager().handleRemoveCommand(context)));
     }
@@ -99,9 +99,11 @@ public abstract class AbstractListCommandBuilder {
     /**
      * Creates the list subcommand
      */
-    private LiteralArgumentBuilder<ServerCommandSource> createListSubcommand() {
-        return CommandManager.literal("list")
+    private LiteralArgumentBuilder<CommandSourceStack> createListSubcommand() {
+        return Commands.literal("list")
                 .requires(source -> PermissionChecker.hasPermission(source, getListPermission(), 0))
                 .executes(context -> getManager().handleListCommand(context));
     }
 }
+
+

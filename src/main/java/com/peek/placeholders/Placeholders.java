@@ -8,64 +8,64 @@ import com.peek.manager.PeekSessionManager;
 import com.peek.manager.PeekStatisticsManager;
 import com.peek.utils.TextUtils;
 import com.peek.utils.compat.ProfileCompat;
-import eu.pb4.placeholders.api.PlaceholderContext;
 import eu.pb4.placeholders.api.PlaceholderResult;
+import eu.pb4.placeholders.api.ServerPlaceholderContext;
 import eu.pb4.placeholders.api.node.LiteralNode;
 import eu.pb4.placeholders.api.node.TextNode;
 import eu.pb4.playerdata.api.PlayerDataApi;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import static com.peek.PeekMod.MOD_ID;
 
 public class Placeholders {
     public static void registerPlaceholders() {
         // Register peek count placeholder
-        eu.pb4.placeholders.api.Placeholders.register(Identifier.of(MOD_ID, "peek_count"), (ctx, args) -> {
-            if (ctx.player() instanceof ServerPlayerEntity player) {
-                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUuid(), ProfileCompat.getName(player.getGameProfile()));
-                return PlaceholderResult.value(Text.literal(String.valueOf(stats.peekCount())));
+        eu.pb4.placeholders.api.Placeholders.registerCommon(Identifier.fromNamespaceAndPath(MOD_ID, "peek_count"), (ctx, args) -> {
+            if (ctx.player() instanceof ServerPlayer player) {
+                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUUID(), ProfileCompat.getName(player.getGameProfile()));
+                return PlaceholderResult.value(Component.literal(String.valueOf(stats.peekCount())));
             }
             return PlaceholderResult.invalid("No player context");
         });
 
         // Register peeked count placeholder
-        eu.pb4.placeholders.api.Placeholders.register(Identifier.of(MOD_ID, "peeked_count"), (ctx, args) -> {
-            if (ctx.player() instanceof ServerPlayerEntity player) {
-                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUuid(), ProfileCompat.getName(player.getGameProfile()));
-                return PlaceholderResult.value(Text.literal(String.valueOf(stats.peekedCount())));
+        eu.pb4.placeholders.api.Placeholders.registerCommon(Identifier.fromNamespaceAndPath(MOD_ID, "peeked_count"), (ctx, args) -> {
+            if (ctx.player() instanceof ServerPlayer player) {
+                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUUID(), ProfileCompat.getName(player.getGameProfile()));
+                return PlaceholderResult.value(Component.literal(String.valueOf(stats.peekedCount())));
             }
             return PlaceholderResult.invalid("No player context");
         });
 
         // Register total duration placeholder
-        eu.pb4.placeholders.api.Placeholders.register(Identifier.of(MOD_ID, "total_duration"), (ctx, args) -> {
-            if (ctx.player() instanceof ServerPlayerEntity player) {
-                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUuid(), ProfileCompat.getName(player.getGameProfile()));
+        eu.pb4.placeholders.api.Placeholders.registerCommon(Identifier.fromNamespaceAndPath(MOD_ID, "total_duration"), (ctx, args) -> {
+            if (ctx.player() instanceof ServerPlayer player) {
+                PlayerPeekStats stats = ManagerRegistry.getInstance().getManager(PeekStatisticsManager.class).getPlayerStats(player.getUUID(), ProfileCompat.getName(player.getGameProfile()));
                 long totalSeconds = stats.totalPeekDuration();
-                return PlaceholderResult.value(Text.literal(TextUtils.formatDuration(totalSeconds)));
+                return PlaceholderResult.value(Component.literal(TextUtils.formatDuration(totalSeconds)));
             }
             return PlaceholderResult.invalid("No player context");
         });
 
         // Register is peeking placeholder
-        eu.pb4.placeholders.api.Placeholders.register(Identifier.of(MOD_ID, "is_peeking"), (ctx, args) -> {
-            if (ctx.player() instanceof ServerPlayerEntity player) {
-                boolean isPeeking = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(player.getUuid());
-                return PlaceholderResult.value(Text.literal(String.valueOf(isPeeking)));
+        eu.pb4.placeholders.api.Placeholders.registerCommon(Identifier.fromNamespaceAndPath(MOD_ID, "is_peeking"), (ctx, args) -> {
+            if (ctx.player() instanceof ServerPlayer player) {
+                boolean isPeeking = ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerPeeking(player.getUUID());
+                return PlaceholderResult.value(Component.literal(String.valueOf(isPeeking)));
             }
             return PlaceholderResult.invalid("No player context");
         });
 
         // Register is private placeholder
-        eu.pb4.placeholders.api.Placeholders.register(Identifier.of(MOD_ID, "is_private"), (ctx, args) -> {
-            if (ctx.player() instanceof ServerPlayerEntity player) {
+        eu.pb4.placeholders.api.Placeholders.registerCommon(Identifier.fromNamespaceAndPath(MOD_ID, "is_private"), (ctx, args) -> {
+            if (ctx.player() instanceof ServerPlayer player) {
                 PlayerPeekData playerData = PlayerDataApi.getCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE);
                 if (playerData != null) {
-                    return PlaceholderResult.value(Text.literal(String.valueOf(playerData.privateMode())));
+                    return PlaceholderResult.value(Component.literal(String.valueOf(playerData.privateMode())));
                 } else {
-                    return PlaceholderResult.value(Text.literal("false"));
+                    return PlaceholderResult.value(Component.literal("false"));
                 }
             }
             return PlaceholderResult.invalid("No player context");
@@ -74,7 +74,7 @@ public class Placeholders {
 
 
     public static boolean containsPlaceholders(String text) {
-        TextNode[] nodes = eu.pb4.placeholders.api.Placeholders.DEFAULT_PLACEHOLDER_PARSER.parseNodes(
+        TextNode[] nodes = eu.pb4.placeholders.api.Placeholders.COMMON_PLACEHOLDER_PARSER.parseNodes(
                 new LiteralNode(text)
         );
 
@@ -87,8 +87,8 @@ public class Placeholders {
         return false;
     }
 
-    public static boolean isOnlyPlaceholders(String text, PlaceholderContext context) {
-        TextNode[] nodes = eu.pb4.placeholders.api.Placeholders.DEFAULT_PLACEHOLDER_PARSER.parseNodes(
+    public static boolean isOnlyPlaceholders(String text, ServerPlaceholderContext context) {
+        TextNode[] nodes = eu.pb4.placeholders.api.Placeholders.COMMON_PLACEHOLDER_PARSER.parseNodes(
                 new LiteralNode(text)
         );
 
@@ -106,3 +106,7 @@ public class Placeholders {
         return true;
     }
 }
+
+
+
+

@@ -2,7 +2,7 @@ package com.peek.data;
 
 import com.peek.PeekMod;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -90,3 +90,7 @@ public final class GlobalDataManager {
         PeekMod.LOGGER.info("Completed saving all global data");
     }
 }
+
+
+
+

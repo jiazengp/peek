@@ -1,10 +1,10 @@
 package com.peek.utils;
 
 import com.peek.utils.compat.TextEventCompat;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.Text;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Component;
 
 import java.net.URI;
 
@@ -76,7 +76,7 @@ public class TextEventFactory {
      * @param text The text to show
      * @return HoverEvent instance
      */
-    public static HoverEvent showText(Text text) {
+    public static HoverEvent showText(Component text) {
         return TextEventCompat.showText(text);
     }
     
@@ -122,7 +122,7 @@ public class TextEventFactory {
      * @return HoverEvent instance
      */
     public static HoverEvent previousPageTooltip() {
-        return showText(Text.translatable("spectatorMenu.previous_page"));
+        return showText(Component.translatable("spectatorMenu.previous_page"));
     }
     
     /**
@@ -130,7 +130,7 @@ public class TextEventFactory {
      * @return HoverEvent instance
      */
     public static HoverEvent nextPageTooltip() {
-        return showText(Text.translatable("spectatorMenu.next_page"));
+        return showText(Component.translatable("spectatorMenu.next_page"));
     }
     
     /**
@@ -138,6 +138,8 @@ public class TextEventFactory {
      * @return HoverEvent instance
      */
     public static HoverEvent cancelPeekTooltip() {
-        return showText(Text.translatable("peek.message.manage.cancel.tip"));
+        return showText(Component.translatable("peek.message.manage.cancel.tip"));
     }
 }
+
+

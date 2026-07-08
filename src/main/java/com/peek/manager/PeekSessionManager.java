@@ -19,12 +19,12 @@ import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.permissions.Permissions;
 import eu.pb4.playerdata.api.PlayerDataApi;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.GameType;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -70,7 +70,7 @@ public class PeekSessionManager extends BaseManager {
      * Starts a peek session between two players
      * Synchronized to prevent race conditions during session creation/switching
      */
-    public synchronized PeekConstants.Result<PeekSession> startPeekSession(ServerPlayerEntity peeker, ServerPlayerEntity target) {
+    public synchronized PeekConstants.Result<PeekSession> startPeekSession(ServerPlayer peeker, ServerPlayer target) {
         SessionCreationContext context = new SessionCreationContext(peeker, target);
         try {
             // Step 1: Initial cleanup and validation
@@ -169,7 +169,7 @@ public class PeekSessionManager extends BaseManager {
             PeekConstants.Result<String> stopResult = stopPeekSessionWithoutRestore(context.getPeekerId());
             if (!stopResult.isSuccess()) {
                 return PeekConstants.Result.failure(
-                    Text.translatable("peek.error.failed_to_stop_session", stopResult.getError()).getString()
+                    Component.translatable("peek.error.failed_to_stop_session", stopResult.getError()).getString()
                 );
             }
         } else {
@@ -233,7 +233,7 @@ public class PeekSessionManager extends BaseManager {
     /**
      * Saves the original player state to persistent storage for crash recovery
      */
-    private PeekConstants.Result<String> saveOriginalStateToPersistent(ServerPlayerEntity player, PlayerState originalState) {
+    private PeekConstants.Result<String> saveOriginalStateToPersistent(ServerPlayer player, PlayerState originalState) {
         try {
             // Get or create player data
             PlayerPeekData playerData = com.peek.data.peek.PlayerPeekData.getOrCreate(player);
@@ -305,12 +305,12 @@ public class PeekSessionManager extends BaseManager {
      */
     private PeekConstants.Result<String> executeTeleportationAndFinalize(SessionCreationContext context) {
         PeekSession session = context.getCreatedSession();
-        ServerPlayerEntity peeker = context.getPeeker();
-        ServerPlayerEntity target = context.getTarget();
+        ServerPlayer peeker = context.getPeeker();
+        ServerPlayer target = context.getTarget();
         
         // Transform peeker to spectator mode
-        peeker.changeGameMode(GameMode.SPECTATOR);
-        peeker.clearStatusEffects();
+        peeker.setGameMode(GameType.SPECTATOR);
+        peeker.removeAllEffects();
         
         try {
             // Execute teleportation
@@ -320,9 +320,9 @@ public class PeekSessionManager extends BaseManager {
             teleportationManager.teleportPeekerToTarget(peeker, target);
 
             // Update session with initial target position
-            Vec3d targetPos = ServerPlayerCompat.getPos(target);
+            Vec3 targetPos = ServerPlayerCompat.getPos(target);
             session.updateTargetPosition(targetPos, UUID.nameUUIDFromBytes(
-                ServerPlayerCompat.getWorld(target).getRegistryKey().getValue().toString().getBytes()
+                ServerPlayerCompat.getWorld(target).dimension().identifier().toString().getBytes()
             ));
 
             PeekMod.LOGGER.debug("Session initialized successfully for {} peeking {}",
@@ -362,14 +362,14 @@ public class PeekSessionManager extends BaseManager {
     /**
      * Helper method to schedule session timeout
      */
-    private void scheduleSessionTimeout(ServerPlayerEntity peeker, PeekSession session) {
+    private void scheduleSessionTimeout(ServerPlayer peeker, PeekSession session) {
         long maxDuration = ModConfigManager.getMaxSessionDuration();
         if (maxDuration > 0 && !ValidationUtils.canBypass(peeker, Permissions.Bypass.TIME_LIMIT, 2)) {
             int timeoutTicks = (int) (maxDuration * PeekConstants.DEFAULT_STATIC_TICKS);
             PeekMod.LOGGER.debug("Scheduled session timeout for {} after {} ticks ({} seconds)",
                 ProfileCompat.getName(peeker.getGameProfile()), timeoutTicks, maxDuration);
             tickTaskManager.addTask(session.getId(), TASK_TYPE_SESSION_TIMEOUT, timeoutTicks,
-                task -> stopPeekSession(peeker.getUuid(), false, getCurrentServer()));
+                task -> stopPeekSession(peeker.getUUID(), false, getCurrentServer()));
         }
     }
     
@@ -384,6 +384,15 @@ public class PeekSessionManager extends BaseManager {
      * Stops a peek session with server context
      */
     public synchronized PeekConstants.Result<String> stopPeekSession(UUID peekerId, boolean voluntary, MinecraftServer server) {
+        return stopPeekSession(peekerId, voluntary, server, null);
+    }
+    
+    /**
+     * Stops a peek session with server context and an optional custom peeker end message
+     */
+    public synchronized PeekConstants.Result<String> stopPeekSession(UUID peekerId, boolean voluntary,
+                                                                     MinecraftServer server,
+                                                                     Component customPeekerEndMessage) {
         try {
             UUID sessionId = peekerToSession.get(peekerId);
             if (sessionId == null) {
@@ -423,7 +432,7 @@ public class PeekSessionManager extends BaseManager {
                 server = getCurrentServer();
             }
             if (server != null) {
-                ServerPlayerEntity peeker = server.getPlayerManager().getPlayer(peekerId);
+                ServerPlayer peeker = server.getPlayerList().getPlayer(peekerId);
                 if (peeker != null && ServerPlayerCompat.getServer(peeker) != null) {
                     PlayerState originalState = session.getOriginalPeekerState();
                     var registryManager = com.peek.utils.compat.PlayerCompat.getRegistryManager(peeker);
@@ -439,17 +448,19 @@ public class PeekSessionManager extends BaseManager {
                         }
                         
                         // Send notification to peeker
-                        Text endMessage = MessageBuilder.message("peek.message.ended_normal");
-                        peeker.sendMessage(endMessage, false);
+                        Component endMessage = customPeekerEndMessage != null
+                            ? customPeekerEndMessage
+                            : MessageBuilder.message("peek.message.ended_normal");
+                        peeker.sendSystemMessage(endMessage, false);
                     
                     // Play session end sound for peeker
                     SoundManager.playSessionEndSound(peeker);
                     
                     // Send notification to target (the player who was being peeked)
-                    ServerPlayerEntity target = server.getPlayerManager().getPlayer(session.getTargetId());
+                    ServerPlayer target = server.getPlayerList().getPlayer(session.getTargetId());
                     if (target != null) {
-                        Text targetMessage = MessageBuilder.message("peek.message.ended_by_target", session.getPeekerName());
-                        target.sendMessage(targetMessage, false);
+                        Component targetMessage = MessageBuilder.message("peek.message.ended_by_target", session.getPeekerName());
+                        target.sendSystemMessage(targetMessage, false);
                         
                         // Play session end sound for target
                         SoundManager.playSessionEndSound(target);
@@ -502,11 +513,11 @@ public class PeekSessionManager extends BaseManager {
             LoggingHelper.logSessionWithDuration("Stopped", 
                 session.getPeekerName(), session.getTargetName(), duration);
             
-            return PeekConstants.Result.success(Text.translatable("peek.message.session_stopped_successfully").getString());
+            return PeekConstants.Result.success(Component.translatable("peek.message.session_stopped_successfully").getString());
             
         } catch (Exception e) {
             PeekMod.LOGGER.error("Error stopping peek session", e);
-            return PeekConstants.Result.failure(Text.translatable("peek.error.internal_error").getString());
+            return PeekConstants.Result.failure(Component.translatable("peek.error.internal_error").getString());
         }
     }
     
@@ -557,7 +568,7 @@ public class PeekSessionManager extends BaseManager {
         
         try {
             // Process particles for each world that has players
-            for (ServerWorld world : server.getWorlds()) {
+            for (ServerLevel world : server.getAllLevels()) {
                 ParticleEffectManager.processParticleEffects(world);
             }
         } catch (Exception e) {
@@ -577,8 +588,13 @@ public class PeekSessionManager extends BaseManager {
         for (PeekSession session : activeSessions.values()) {
             try {
                 sessionUpdateHandler.updateSessionChecks(session, getCurrentServer(),
-                        (peekerId, voluntary) -> {
-                            PeekConstants.Result<String> result = stopPeekSession(peekerId, voluntary, getCurrentServer());
+                        (peekerId, voluntary, customPeekerEndMessage) -> {
+                            PeekConstants.Result<String> result = stopPeekSession(
+                                peekerId,
+                                voluntary,
+                                getCurrentServer(),
+                                customPeekerEndMessage
+                            );
                             if (!result.isSuccess()) {
                                 PeekMod.LOGGER.warn("Failed to stop session during update: {}", result.getError());
                             }
@@ -606,8 +622,8 @@ public class PeekSessionManager extends BaseManager {
         for (TeleportationManager.DelayedTeleportTask task : completedTasks) {
             try {
                 // Re-verify players are still valid before teleporting
-                ServerPlayerEntity peeker = server.getPlayerManager().getPlayer(task.peekerId);
-                ServerPlayerEntity target = server.getPlayerManager().getPlayer(task.targetId);
+                ServerPlayer peeker = server.getPlayerList().getPlayer(task.peekerId);
+                ServerPlayer target = server.getPlayerList().getPlayer(task.targetId);
 
                 if (peeker == null || target == null) {
                     PeekMod.LOGGER.warn("Player became null during delayed teleport, ending session");
@@ -627,26 +643,21 @@ public class PeekSessionManager extends BaseManager {
 
                 // Update session's world ID to reflect the successful dimension change
                 UUID newWorldId = UUID.nameUUIDFromBytes(
-                    ServerPlayerCompat.getWorld(target).getRegistryKey().getValue().toString().getBytes()
+                    ServerPlayerCompat.getWorld(target).dimension().identifier().toString().getBytes()
                 );
                 currentSession.updateTargetPosition(ServerPlayerCompat.getPos(target), newWorldId);
                 
                 PeekMod.LOGGER.debug("Updated session world ID after successful dimension follow");
                 
-                Text message = Text.translatable("peek.message.followed_dimension", task.targetName)
-                    .formatted(Formatting.AQUA);
-                peeker.sendMessage(message, false);
+                Component message = Component.translatable("peek.message.followed_dimension", task.targetName)
+                    .withStyle(ChatFormatting.AQUA);
+                peeker.sendSystemMessage(message, false);
                 
             } catch (Exception teleportError) {
                 PeekMod.LOGGER.error("Failed to follow target to new dimension during delayed teleport, ending session", teleportError);
-                
-                ServerPlayerEntity errorPeeker = server.getPlayerManager().getPlayer(task.peekerId);
-                if (errorPeeker != null) {
-                    Text message = Text.translatable("peek.message.ended_teleport_failed");
-                    errorPeeker.sendMessage(message, false);
-                }
-                
-                stopPeekSession(task.peekerId, false);
+
+                stopPeekSession(task.peekerId, false, null,
+                    Component.translatable("peek.message.ended_teleport_failed"));
             }
         }
     }
@@ -757,8 +768,8 @@ public class PeekSessionManager extends BaseManager {
         }
     }
     
-    private boolean isPlayerStationary(ServerPlayerEntity player) {
-        return player.getVelocity().lengthSquared() < 0.01;
+    private boolean isPlayerStationary(ServerPlayer player) {
+        return player.getDeltaMovement().lengthSqr() < 0.01;
     }
     
     /**
@@ -791,10 +802,10 @@ public class PeekSessionManager extends BaseManager {
             // Send notification to target (the player who was being peeked) 
             MinecraftServer server = getCurrentServer();
             if (server != null) {
-                ServerPlayerEntity target = server.getPlayerManager().getPlayer(session.getTargetId());
+                ServerPlayer target = server.getPlayerList().getPlayer(session.getTargetId());
                 if (target != null) {
-                    Text targetMessage = Text.translatable("peek.message.peek_switched_target", session.getPeekerName());
-                    target.sendMessage(targetMessage, false);
+                    Component targetMessage = Component.translatable("peek.message.peek_switched_target", session.getPeekerName());
+                    target.sendSystemMessage(targetMessage, false);
                 }
             }
             
@@ -812,11 +823,11 @@ public class PeekSessionManager extends BaseManager {
             updateCommandVisibility(peekerId);
             updateCommandVisibility(session.getTargetId());
             
-            return PeekConstants.Result.success(Text.translatable("peek.message.session_stopped_without_restore").getString());
+            return PeekConstants.Result.success(Component.translatable("peek.message.session_stopped_without_restore").getString());
             
         } catch (Exception e) {
             PeekMod.LOGGER.error("Error stopping peek session without restore", e);
-            return PeekConstants.Result.failure(Text.translatable("peek.error.internal_error").getString());
+            return PeekConstants.Result.failure(Component.translatable("peek.error.internal_error").getString());
         }
     }
     
@@ -826,7 +837,7 @@ public class PeekSessionManager extends BaseManager {
     private void updateCommandVisibility(UUID playerId) {
         MinecraftServer server = getCurrentServer();
         if (server != null) {
-            ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+            ServerPlayer player = server.getPlayerList().getPlayer(playerId);
             if (player != null) {
                 com.peek.utils.CommandUtils.updateCommandTree(player);
             }
@@ -866,7 +877,7 @@ public class PeekSessionManager extends BaseManager {
     private SessionUtils.RollbackHandler createRollbackHandler(PlayerState existingOriginalState) {
         return new SessionUtils.RollbackHandler() {
             @Override
-            public void handleSwitchingRollback(ServerPlayerEntity peeker, PeekSession sessionToRestore, UUID peekerId) {
+            public void handleSwitchingRollback(ServerPlayer peeker, PeekSession sessionToRestore, UUID peekerId) {
                 // Restore previous session for peek switching
                 PeekMod.LOGGER.info("Rolling back peek switch, restoring previous session");
                 activeSessions.put(sessionToRestore.getId(), sessionToRestore);
@@ -875,7 +886,7 @@ public class PeekSessionManager extends BaseManager {
                     .add(sessionToRestore.getId());
                 
                 // Restore previous spectator mode (don't restore to original state)
-                peeker.changeGameMode(GameMode.SPECTATOR);
+                peeker.setGameMode(GameType.SPECTATOR);
                 
                 
                 // Ensure saved state in PlayerDataAPI is preserved (not cleared)
@@ -891,7 +902,7 @@ public class PeekSessionManager extends BaseManager {
             }
             
             @Override
-            public void handleNewSessionRollback(ServerPlayerEntity peeker) {
+            public void handleNewSessionRollback(ServerPlayer peeker) {
                 // Full restoration for new session failure
                 if (existingOriginalState != null) {
                     var registryManager = com.peek.utils.compat.PlayerCompat.getRegistryManager(peeker);
@@ -938,28 +949,28 @@ public class PeekSessionManager extends BaseManager {
             
         } catch (Exception e) {
             PeekMod.LOGGER.error("Failed to cleanup session mappings", e);
-            return PeekConstants.Result.failure(Text.translatable("peek.error.session_cleanup_failed").getString());
+            return PeekConstants.Result.failure(Component.translatable("peek.error.session_cleanup_failed").getString());
         }
     }
 
     /**
      * Notifies the previous target when a peeker switches to a new target
      */
-    private void notifyPreviousTargetOfSwitch(PeekSession previousSession, ServerPlayerEntity newTarget) {
+    private void notifyPreviousTargetOfSwitch(PeekSession previousSession, ServerPlayer newTarget) {
         MinecraftServer server = getCurrentServer();
         if (previousSession == null || server == null) {
             return;
         }
         
-        ServerPlayerEntity previousTarget = server.getPlayerManager().getPlayer(previousSession.getTargetId());
+        ServerPlayer previousTarget = server.getPlayerList().getPlayer(previousSession.getTargetId());
         if (previousTarget != null) {
             // Only notify if this was the only peeker, or explain that peeker switched
             List<PeekSession> otherSessions = getSessionsTargeting(previousSession.getTargetId());
             if (otherSessions.size() <= 1) { // Only the current session which will be stopped
-                Text message = Text.translatable("peek.message.peek_switch_away",
+                Component message = Component.translatable("peek.message.peek_switch_away",
                     previousSession.getPeekerName(), ProfileCompat.getName(newTarget.getGameProfile()))
-                    .formatted(Formatting.GRAY);
-                previousTarget.sendMessage(message, false);
+                    .withStyle(ChatFormatting.GRAY);
+                previousTarget.sendSystemMessage(message, false);
             }
 
             PeekMod.LOGGER.debug("Notified {} that {} switched peek to {}",
@@ -1018,7 +1029,7 @@ public class PeekSessionManager extends BaseManager {
                             sessionId, session.getPeekerName(), session.getTargetName());
                         
                         // Get peeker and restore their state
-                        ServerPlayerEntity peeker = server.getPlayerManager().getPlayer(peekerId);
+                        ServerPlayer peeker = server.getPlayerList().getPlayer(peekerId);
                         if (peeker != null) {
                             try {
                                 // Restore peeker's original state
@@ -1078,3 +1089,5 @@ public class PeekSessionManager extends BaseManager {
         }
     }
 }
+
+

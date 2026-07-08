@@ -11,11 +11,11 @@ import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.compat.TextEventCompat;
 import com.peek.utils.compat.UserCacheCompat;
 import eu.pb4.playerdata.api.PlayerDataApi;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -76,21 +76,21 @@ public abstract class AbstractPlayerListManager {
     /**
      * Handles the add command for this list type
      */
-    public int handleAddCommand(CommandContext<ServerCommandSource> context) {
+    public int handleAddCommand(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            ServerPlayerEntity target = CommandUtils.getPlayerArgument(context, "player");
+            ServerPlayer target = CommandUtils.getPlayerArgument(context, "player");
             if (!ValidationUtils.validatePlayerNotNull(target, player)) return 0;
 
             PlayerPeekData data = getOrCreatePlayerData(player);
-            if (!validateListOperation(data, target.getUuid(), target.getDisplayName(), player, true)) {
+            if (!validateListOperation(data, target.getUUID(), target.getDisplayName(), player, true)) {
                 return 0;
             }
             
             // Check if this would cause removal from opposite list
             boolean wouldCauseRemoval = PlayerListMutualExclusion.wouldCauseRemoval(
-                data, target.getUuid(), getListType().equals("whitelist"));
+                data, target.getUUID(), getListType().equals("whitelist"));
             
-            data = addWithMutualExclusion(data, target.getUuid());
+            data = addWithMutualExclusion(data, target.getUUID());
             PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, data);
             
             // Handle active sessions and pending requests (important for blacklist)
@@ -99,14 +99,14 @@ public abstract class AbstractPlayerListManager {
             }
             
             // Send confirmation message
-            player.sendMessage(Text.translatable("peek." + getListType() + ".added", 
+            player.sendSystemMessage(Component.translatable("peek." + getListType() + ".added", 
                 target.getDisplayName()), false);
             
             // Send mutual exclusion notification if applicable
             if (wouldCauseRemoval) {
                 String oppositeList = PlayerListMutualExclusion.getOppositeListName(getListType().equals("whitelist"));
-                player.sendMessage(Text.translatable("peek." + getListType() + ".moved_from_" + oppositeList, 
-                    target.getDisplayName()).formatted(Formatting.GRAY), false);
+                player.sendSystemMessage(Component.translatable("peek." + getListType() + ".moved_from_" + oppositeList, 
+                    target.getDisplayName()).withStyle(ChatFormatting.GRAY), false);
             }
             
             return 1;
@@ -116,26 +116,26 @@ public abstract class AbstractPlayerListManager {
     /**
      * Handles the remove command for this list type
      */
-    public int handleRemoveCommand(CommandContext<ServerCommandSource> context) {
+    public int handleRemoveCommand(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
             PlayerPeekData data = getOrCreatePlayerData(player);
             
             // Check if list is empty
             if (getList(data).isEmpty()) {
-                player.sendMessage(Text.translatable("peek." + getListType() + ".empty"), false);
+                player.sendSystemMessage(Component.translatable("peek." + getListType() + ".empty"), false);
                 return 0;
             }
             
-            ServerPlayerEntity target = CommandUtils.getPlayerArgument(context, "player");
+            ServerPlayer target = CommandUtils.getPlayerArgument(context, "player");
             if (!ValidationUtils.validatePlayerNotNull(target, player)) return 0;
 
-            if (!validateListOperation(data, target.getUuid(), target.getDisplayName(), player, false)) {
+            if (!validateListOperation(data, target.getUUID(), target.getDisplayName(), player, false)) {
                 return 0;
             }
             
-            data = removeFromList(data, target.getUuid());
+            data = removeFromList(data, target.getUUID());
             PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, data);
-            player.sendMessage(Text.translatable("peek." + getListType() + ".removed", 
+            player.sendSystemMessage(Component.translatable("peek." + getListType() + ".removed", 
                 target.getDisplayName()), false);
             return 1;
         });
@@ -144,17 +144,17 @@ public abstract class AbstractPlayerListManager {
     /**
      * Handles the list command for this list type
      */
-    public int handleListCommand(CommandContext<ServerCommandSource> context) {
+    public int handleListCommand(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
             PlayerPeekData data = getOrCreatePlayerData(player);
             Map<UUID, Long> list = getList(data);
             
             if (list.isEmpty()) {
-                player.sendMessage(Text.translatable("peek." + getListType() + ".empty"), false);
+                player.sendSystemMessage(Component.translatable("peek." + getListType() + ".empty"), false);
                 return 1;
             }
             
-            MutableText message = Text.translatable("peek." + getListType() + ".header");
+            MutableComponent message = Component.translatable("peek." + getListType() + ".header");
             
             // Add list entries with resolved player names, timestamps, and remove buttons
             int count = 0;
@@ -163,7 +163,7 @@ public abstract class AbstractPlayerListManager {
                 Long timestamp = entry.getValue();
                 count++;
                 
-                ServerPlayerEntity listPlayer = ServerPlayerCompat.getServer(player).getPlayerManager().getPlayer(uuid);
+                ServerPlayer listPlayer = ServerPlayerCompat.getServer(player).getPlayerList().getPlayer(uuid);
                 String playerName;
 
                 if (listPlayer != null) {
@@ -171,8 +171,7 @@ public abstract class AbstractPlayerListManager {
                     playerName = listPlayer.getName().getString();
                 } else {
                     // Player is offline, try to get name from player cache
-                    var userCache = UserCacheCompat.getUserCache(ServerPlayerCompat.getServer(player));
-                    playerName = UserCacheCompat.getNameByUuid(userCache, uuid).orElse("Unknown Player");
+                    playerName = UserCacheCompat.getNameByUuid(ServerPlayerCompat.getServer(player), uuid).orElse("Unknown Player");
                 }
                 
                 // Format timestamp
@@ -185,17 +184,17 @@ public abstract class AbstractPlayerListManager {
                 }
                 
                 // Create remove button
-                MutableText removeButton = Text.translatable("peek." + getListType() + ".remove_button")
-                    .styled(style -> style
+                MutableComponent removeButton = Component.translatable("peek." + getListType() + ".remove_button")
+                    .withStyle(style -> style
                         .withClickEvent(TextEventCompat.runCommand("/peek settings " + getListType() + " remove " + playerName))
-                        .withHoverEvent(TextEventCompat.showText(Text.translatable("peek." + getListType() + ".remove_button_tip", playerName))));
+                        .withHoverEvent(TextEventCompat.showText(Component.translatable("peek." + getListType() + ".remove_button_tip", playerName))));
                 
                 // Add player entry to message with timestamp and remove button
-                message.append(Text.literal("\n§7" + count + ". §f" + playerName + " §8(" + timeString + ") "))
+                message.append(Component.literal("\n§7" + count + ". §f" + playerName + " §8(" + timeString + ") "))
                        .append(removeButton);
             }
             
-            player.sendMessage(message, false);
+            player.sendSystemMessage(message, false);
             return 1;
         });
     }
@@ -204,17 +203,17 @@ public abstract class AbstractPlayerListManager {
      * Validates list operations (add/remove)
      */
     protected boolean validateListOperation(PlayerPeekData data, UUID targetId, 
-                                          net.minecraft.text.Text targetName, ServerPlayerEntity executor, boolean isAddOperation) {
+                                          net.minecraft.network.chat.Component targetName, ServerPlayer executor, boolean isAddOperation) {
         Map<UUID, Long> list = getList(data);
         boolean inList = list.containsKey(targetId);
         
         if (isAddOperation && inList) {
-            executor.sendMessage(Text.translatable("peek." + getListType() + ".already_exists", targetName)
-                .formatted(Formatting.YELLOW), false);
+            executor.sendSystemMessage(Component.translatable("peek." + getListType() + ".already_exists", targetName)
+                .withStyle(ChatFormatting.YELLOW), false);
             return false;
         } else if (!isAddOperation && !inList) {
-            executor.sendMessage(Text.translatable("peek." + getListType() + ".not_exists", targetName)
-                .formatted(Formatting.YELLOW), false);
+            executor.sendSystemMessage(Component.translatable("peek." + getListType() + ".not_exists", targetName)
+                .withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
         
@@ -224,31 +223,36 @@ public abstract class AbstractPlayerListManager {
     /**
      * Helper method to get or create player data
      */
-    protected PlayerPeekData getOrCreatePlayerData(ServerPlayerEntity player) {
+    protected PlayerPeekData getOrCreatePlayerData(ServerPlayer player) {
         return PlayerPeekData.getOrCreate(player);
     }
     
     /**
      * Handles session and request management when adding to blacklist
      */
-    private void handleBlacklistSessionsAndRequests(ServerPlayerEntity player, ServerPlayerEntity target) {
+    private void handleBlacklistSessionsAndRequests(ServerPlayer player, ServerPlayer target) {
         PeekSessionManager sessionManager = ManagerRegistry.getInstance().getManager(PeekSessionManager.class);
         PeekRequestManager requestManager = ManagerRegistry.getInstance().getManager(PeekRequestManager.class);
         
         // 1. If the blacklisted player is currently peeking the blacklister, stop their peek session
-        if (sessionManager.isPlayerPeeking(target.getUuid())) {
-            var targetSession = sessionManager.getSessionByPeeker(target.getUuid());
-            if (targetSession != null && targetSession.getTargetId().equals(player.getUuid())) {
+        if (sessionManager.isPlayerPeeking(target.getUUID())) {
+            var targetSession = sessionManager.getSessionByPeeker(target.getUUID());
+            if (targetSession != null && targetSession.getTargetId().equals(player.getUUID())) {
                 // The blacklisted player is peeking the blacklister, stop the session
-                sessionManager.stopPeekSession(target.getUuid(), false, ServerPlayerCompat.getServer(player));
+                sessionManager.stopPeekSession(
+                    target.getUUID(),
+                    false,
+                    ServerPlayerCompat.getServer(player),
+                    Component.translatable("peek.message.ended_blacklisted")
+                );
                 
                 // Notify both players
-                target.sendMessage(Text.translatable("peek.message.ended_blacklisted"), false);
-                player.sendMessage(Text.translatable("peek.message.blacklist_stopped_peek", target.getDisplayName()), false);
+                player.sendSystemMessage(Component.translatable("peek.message.blacklist_stopped_peek", target.getDisplayName()), false);
             }
         }
         
         // 2. Cancel any pending requests between the players
-        requestManager.cancelRequestsBetween(player.getUuid(), target.getUuid());
+        requestManager.cancelRequestsBetween(player.getUUID(), target.getUUID());
     }
 }
+

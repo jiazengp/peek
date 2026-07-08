@@ -6,9 +6,9 @@ import com.peek.data.peek.PeekSession;
 import com.peek.utils.MessageBuilder;
 import com.peek.utils.compat.ServerPlayerCompat;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.UUID;
 
@@ -43,22 +43,22 @@ public class SessionUpdateHandler {
                 return true; 
             }
             
-            ServerPlayerEntity peeker = server.getPlayerManager().getPlayer(peekerId);
-            ServerPlayerEntity target = server.getPlayerManager().getPlayer(targetId);
+            ServerPlayer peeker = server.getPlayerList().getPlayer(peekerId);
+            ServerPlayer target = server.getPlayerList().getPlayer(targetId);
             
             // Check if either player is offline
             if (peeker == null || target == null) {
                 PeekMod.LOGGER.debug("Player offline, ending peek session: peeker={}, target={}", 
                     session.getPeekerName(), session.getTargetName());
-                sessionEndCallback.endSession(peekerId, false);
+                sessionEndCallback.endSession(peekerId, false, null);
                 return true;
             }
             
             // Update positions
-            Vec3d targetPos = ServerPlayerCompat.getPos(target);
-            Vec3d peekerPos = ServerPlayerCompat.getPos(peeker);
+            Vec3 targetPos = ServerPlayerCompat.getPos(target);
+            Vec3 peekerPos = ServerPlayerCompat.getPos(peeker);
             UUID targetWorldId = UUID.nameUUIDFromBytes(
-                ServerPlayerCompat.getWorld(target).getRegistryKey().getValue().toString().getBytes()
+                ServerPlayerCompat.getWorld(target).dimension().identifier().toString().getBytes()
             );
             UUID currentTargetWorldId = session.getCurrentWorldId();
             
@@ -90,7 +90,7 @@ public class SessionUpdateHandler {
     /**
      * Handles dimension change scenarios
      */
-    private boolean handleDimensionChange(PeekSession session, ServerPlayerEntity peeker, ServerPlayerEntity target,
+    private boolean handleDimensionChange(PeekSession session, ServerPlayer peeker, ServerPlayer target,
                                         UUID targetWorldId, UUID currentTargetWorldId, 
                                         SessionEndCallback sessionEndCallback) {
         PeekMod.LOGGER.debug("Target {} changed dimension from {} to {}", 
@@ -98,9 +98,8 @@ public class SessionUpdateHandler {
             
         if (!ModConfigManager.isAllowDimensionFollowing()) {
             PeekMod.LOGGER.debug("Dimension following not allowed, ending peek session");
-            Text message = MessageBuilder.message("peek.message.ended_dimension_change");
-            peeker.sendMessage(message, false);
-            sessionEndCallback.endSession(session.getPeekerId(), false);
+            sessionEndCallback.endSession(session.getPeekerId(), false,
+                MessageBuilder.message("peek.message.ended_dimension_change"));
             return true;
         } else {
             // Schedule teleportation after configured delay to give portal time to settle
@@ -123,8 +122,8 @@ public class SessionUpdateHandler {
     /**
      * Performs distance validation checks
      */
-    private boolean performDistanceChecks(PeekSession session, ServerPlayerEntity peeker, ServerPlayerEntity target,
-                                        Vec3d targetPos, Vec3d peekerPos, SessionEndCallback sessionEndCallback) {
+    private boolean performDistanceChecks(PeekSession session, ServerPlayer peeker, ServerPlayer target,
+                                        Vec3 targetPos, Vec3 peekerPos, SessionEndCallback sessionEndCallback) {
         // Check distance limits for peeker movement
         double maxMoveDistance = ModConfigManager.getMaxPeekMoveDistance();
         if (maxMoveDistance > 0) {
@@ -139,7 +138,8 @@ public class SessionUpdateHandler {
                     
                 boolean shouldEndSession = teleportationManager.handlePeekerDistanceExceeded(peeker, target, session);
                 if (shouldEndSession) {
-                    sessionEndCallback.endSession(session.getPeekerId(), false);
+                    sessionEndCallback.endSession(session.getPeekerId(), false,
+                        MessageBuilder.message("peek.message.ended_distance"));
                 }
                 return true; // Continue processing
             }
@@ -149,7 +149,7 @@ public class SessionUpdateHandler {
         // Skip this check for cross-dimensional scenarios
         UUID originalWorldId = session.getOriginalWorldId();
         UUID currentTargetWorldId = UUID.nameUUIDFromBytes(
-            ServerPlayerCompat.getWorld(target).getRegistryKey().getValue().toString().getBytes()
+            ServerPlayerCompat.getWorld(target).dimension().identifier().toString().getBytes()
         );
         
         boolean isCrossDimensional = !originalWorldId.equals(currentTargetWorldId);
@@ -157,7 +157,7 @@ public class SessionUpdateHandler {
         
         if (maxDistance > 0 && !isCrossDimensional && targetPos.distanceTo(session.getOriginalPeekerState().position()) > maxDistance) {
             PeekMod.LOGGER.info("Target moved too far from original peek location, ending peek session");
-            sessionEndCallback.endSession(session.getPeekerId(), false);
+            sessionEndCallback.endSession(session.getPeekerId(), false, null);
             return true;
         } else if (isCrossDimensional) {
             PeekMod.LOGGER.debug("Skipping distance check for cross-dimensional peek session");
@@ -173,7 +173,7 @@ public class SessionUpdateHandler {
         if (maxPeekerDistance > 0 && peekerToTargetDistance > maxPeekerDistance) {
             PeekMod.LOGGER.info("Peeker moved too far from target ({}>{} blocks), ending peek session", 
                 peekerToTargetDistance, maxPeekerDistance);
-            sessionEndCallback.endSession(session.getPeekerId(), false);
+            sessionEndCallback.endSession(session.getPeekerId(), false, null);
             return true;
         }
         
@@ -184,6 +184,7 @@ public class SessionUpdateHandler {
      * Callback interface for ending sessions
      */
     public interface SessionEndCallback {
-        void endSession(UUID peekerId, boolean voluntary);
+        void endSession(UUID peekerId, boolean voluntary, Component customPeekerEndMessage);
     }
 }
+

@@ -1,9 +1,9 @@
 package com.peek.utils;
 
 import com.peek.manager.constants.ErrorCodes;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 /**
  * Utility class for building consistent translatable messages
@@ -17,82 +17,82 @@ public final class MessageBuilder {
     /**
      * Creates a success message with green formatting
      */
-    public static Text success(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.GREEN);
+    public static Component success(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.GREEN);
     }
     
     /**
      * Creates an error message with red formatting
      */
-    public static Text error(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.RED);
+    public static Component error(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.RED);
     }
     
     /**
      * Creates a warning message with yellow formatting
      */
-    public static Text warning(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.YELLOW);
+    public static Component warning(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.YELLOW);
     }
     
     /**
      * Creates an info message with gray formatting
      */
-    public static Text info(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.GRAY);
+    public static Component info(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.GRAY);
     }
     
     /**
      * Creates an aqua-colored message for special notifications
      */
-    public static Text special(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args).formatted(Formatting.AQUA);
+    public static Component special(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args).withStyle(ChatFormatting.AQUA);
     }
     
     /**
      * Creates a translatable message (formatting is handled in lang file)
      */
-    public static Text message(String translationKey, Object... args) {
-        return Text.translatable(translationKey, args);
+    public static Component message(String translationKey, Object... args) {
+        return Component.translatable(translationKey, args);
     }
     
     /**
      * Sends a message to player with optional overlay
      */
-    public static void sendMessage(net.minecraft.server.network.ServerPlayerEntity player, String translationKey, boolean overlay, Object... args) {
-        player.sendMessage(Text.translatable(translationKey, args), overlay);
+    public static void sendMessage(net.minecraft.server.level.ServerPlayer player, String translationKey, boolean overlay, Object... args) {
+        player.sendSystemMessage(Component.translatable(translationKey, args), overlay);
     }
     
     /**
      * Sends a regular chat message
      */
-    public static void sendChat(net.minecraft.server.network.ServerPlayerEntity player, String translationKey, Object... args) {
+    public static void sendChat(net.minecraft.server.level.ServerPlayer player, String translationKey, Object... args) {
         sendMessage(player, translationKey, false, args);
     }
     
     /**
      * Sends an overlay message (appears above hotbar)
      */
-    public static void sendOverlay(net.minecraft.server.network.ServerPlayerEntity player, String translationKey, Object... args) {
+    public static void sendOverlay(net.minecraft.server.level.ServerPlayer player, String translationKey, Object... args) {
         sendMessage(player, translationKey, true, args);
     }
     
     /**
      * Creates an error message from ErrorCodes enum
      */
-    public static Text error(ErrorCodes errorCode, Object... args) {
+    public static Component error(ErrorCodes errorCode, Object... args) {
         return error(errorCode.getTranslationKey(), args);
     }
     
     /**
      * Creates a clickable button with hover text
      */
-    public static MutableText button(String translationKey, Formatting color, 
-                                    net.minecraft.text.ClickEvent clickEvent, 
-                                    net.minecraft.text.HoverEvent hoverEvent) {
-        return Text.translatable(translationKey)
-            .formatted(color, Formatting.UNDERLINE)
-            .styled(style -> style
+    public static MutableComponent button(String translationKey, ChatFormatting color, 
+                                    net.minecraft.network.chat.ClickEvent clickEvent, 
+                                    net.minecraft.network.chat.HoverEvent hoverEvent) {
+        return Component.translatable(translationKey)
+            .withStyle(color, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style
                 .withClickEvent(clickEvent)
                 .withHoverEvent(hoverEvent)
             );
@@ -101,16 +101,17 @@ public final class MessageBuilder {
     /**
      * Creates a bracketed button (e.g., " [Accept]")
      */
-    public static MutableText bracketedButton(String translationKey, Formatting color, 
-                                            net.minecraft.text.ClickEvent clickEvent, 
-                                            net.minecraft.text.HoverEvent hoverEvent) {
-        return Text.literal(" [")
-            .append(Text.translatable(translationKey))
+    public static MutableComponent bracketedButton(String translationKey, ChatFormatting color, 
+                                            net.minecraft.network.chat.ClickEvent clickEvent, 
+                                            net.minecraft.network.chat.HoverEvent hoverEvent) {
+        return Component.literal(" [")
+            .append(Component.translatable(translationKey))
             .append("]")
-            .formatted(color, Formatting.UNDERLINE)
-            .styled(style -> style
+            .withStyle(color, ChatFormatting.UNDERLINE)
+            .withStyle(style -> style
                 .withClickEvent(clickEvent)
                 .withHoverEvent(hoverEvent)
             );
     }
 }
+

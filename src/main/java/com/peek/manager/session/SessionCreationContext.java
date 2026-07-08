@@ -3,7 +3,7 @@ package com.peek.manager.session;
 import com.peek.data.peek.PeekSession;
 import com.peek.data.peek.PlayerState;
 import com.peek.utils.compat.ServerPlayerCompat;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -13,8 +13,8 @@ import java.util.UUID;
  * Reduces parameter passing between session creation methods.
  */
 public class SessionCreationContext {
-    private final ServerPlayerEntity peeker;
-    private final ServerPlayerEntity target;
+    private final ServerPlayer peeker;
+    private final ServerPlayer target;
     private final UUID peekerId;
     private final UUID targetId;
     
@@ -28,16 +28,16 @@ public class SessionCreationContext {
     private PeekSession createdSession = null;
     private String errorMessage = null;
     
-    public SessionCreationContext(ServerPlayerEntity peeker, ServerPlayerEntity target) {
+    public SessionCreationContext(ServerPlayer peeker, ServerPlayer target) {
         this.peeker = peeker;
         this.target = target;
-        this.peekerId = peeker.getUuid();
-        this.targetId = target.getUuid();
+        this.peekerId = peeker.getUUID();
+        this.targetId = target.getUUID();
     }
     
     // Getters
-    public ServerPlayerEntity getPeeker() { return peeker; }
-    public ServerPlayerEntity getTarget() { return target; }
+    public ServerPlayer getPeeker() { return peeker; }
+    public ServerPlayer getTarget() { return target; }
     public UUID getPeekerId() { return peekerId; }
     public UUID getTargetId() { return targetId; }
     
@@ -85,8 +85,9 @@ public class SessionCreationContext {
             return existingOriginalState.worldId();
         } else {
             return UUID.nameUUIDFromBytes(
-                ServerPlayerCompat.getWorld(peeker).getRegistryKey().getValue().toString().getBytes()
+                ServerPlayerCompat.getWorld(peeker).dimension().identifier().toString().getBytes()
             );
         }
     }
 }
+

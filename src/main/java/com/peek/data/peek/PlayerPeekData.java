@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Stores player-specific peek settings and data
@@ -39,8 +39,8 @@ public record PlayerPeekData(
     public static final Codec<PlayerPeekData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
         Codec.BOOL.fieldOf("privateMode").forGetter(PlayerPeekData::privateMode),
         Codec.BOOL.fieldOf("autoAccept").forGetter(PlayerPeekData::autoAccept),
-        Codec.unboundedMap(net.minecraft.util.Uuids.CODEC, Codec.LONG).fieldOf("blacklist").forGetter(PlayerPeekData::blacklist),
-        Codec.unboundedMap(net.minecraft.util.Uuids.CODEC, Codec.LONG).fieldOf("whitelist").forGetter(PlayerPeekData::whitelist),
+        Codec.unboundedMap(net.minecraft.core.UUIDUtil.CODEC, Codec.LONG).fieldOf("blacklist").forGetter(PlayerPeekData::blacklist),
+        Codec.unboundedMap(net.minecraft.core.UUIDUtil.CODEC, Codec.LONG).fieldOf("whitelist").forGetter(PlayerPeekData::whitelist),
         PlayerState.CODEC.optionalFieldOf("savedState").forGetter((PlayerPeekData data) -> Optional.ofNullable(data.savedState()))
     ).apply(instance, (privateMode, autoAccept, blacklist, whitelist, savedState) -> 
         new PlayerPeekData(privateMode, autoAccept, blacklist, whitelist, savedState.orElse(null))));
@@ -57,7 +57,7 @@ public record PlayerPeekData(
      * @param player Player to get data for
      * @return Player data with guaranteed non-null maps
      */
-    public static PlayerPeekData getOrCreate(ServerPlayerEntity player) {
+    public static PlayerPeekData getOrCreate(ServerPlayer player) {
         try {
             PlayerPeekData data = eu.pb4.playerdata.api.PlayerDataApi.getCustomDataFor(player, 
                 com.peek.data.PeekDataStorage.PLAYER_PEEK_DATA_STORAGE);
@@ -181,3 +181,4 @@ public record PlayerPeekData(
         return whitelist.get(playerId);
     }
 }
+

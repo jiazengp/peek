@@ -16,7 +16,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,7 +108,7 @@ public class PeekMod implements ModInitializer {
 
 		// Handle player connections for crash recovery
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-			ServerPlayerEntity player = handler.getPlayer();
+			ServerPlayer player = handler.getPlayer();
 			LOGGER.debug("Player {} joined server - scheduling crash recovery check", ProfileCompat.getName(player.getGameProfile()));
 			
 			// Schedule crash recovery check with proper delay using TickTaskManager
@@ -141,13 +141,13 @@ public class PeekMod implements ModInitializer {
 
 		// Handle player disconnections
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-			ServerPlayerEntity player = handler.getPlayer();
+			ServerPlayer player = handler.getPlayer();
 			try {
 				// Clean up particle effects for this player
-				ParticleEffectManager.cleanupPlayerParticles(player.getUuid());
+				ParticleEffectManager.cleanupPlayerParticles(player.getUUID());
 
 				// Stop any active sessions involving this player, passing server for offline state saving
-				ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopAllSessionsInvolving(player.getUuid(), server);
+				ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopAllSessionsInvolving(player.getUUID(), server);
 				LOGGER.debug("Cleaned up sessions and particle effects for disconnecting player {}", ProfileCompat.getName(player.getGameProfile()));
 			} catch (Exception e) {
 				LOGGER.error("Error cleaning up sessions for {}", ProfileCompat.getName(player.getGameProfile()), e);
@@ -156,13 +156,13 @@ public class PeekMod implements ModInitializer {
 
 		// Handle player death events
 		ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
-			if (entity instanceof ServerPlayerEntity player) {
+			if (entity instanceof ServerPlayer player) {
 				try {
 					// Clean up particle effects for this player
-					ParticleEffectManager.cleanupPlayerParticles(player.getUuid());
+					ParticleEffectManager.cleanupPlayerParticles(player.getUUID());
 
 					// Stop any active sessions involving this player when they die
-					ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopAllSessionsInvolving(player.getUuid());
+					ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopAllSessionsInvolving(player.getUUID());
 					LOGGER.debug("Cleaned up sessions and particle effects for dead player {}", ProfileCompat.getName(player.getGameProfile()));
 				} catch (Exception e) {
 					LOGGER.error("Error cleaning up sessions for dead player {}", ProfileCompat.getName(player.getGameProfile()), e);
@@ -173,3 +173,4 @@ public class PeekMod implements ModInitializer {
 		LOGGER.info("Peek Mod initialized successfully!");
 	}
 }
+

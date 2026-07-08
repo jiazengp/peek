@@ -5,12 +5,12 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.peek.utils.compat.ProfileCompat;
 import com.peek.utils.compat.ServerPlayerCompat;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.GameType;
 
 import java.util.Collection;
 import java.util.List;
@@ -21,12 +21,12 @@ import java.util.UUID;
  * Supports serialization for persistence across server restarts
  */
 public record PlayerState(
-    Vec3d position,
+    Vec3 position,
     float yaw,
     float pitch,
     UUID worldId, 
-    GameMode gameMode,
-    List<StatusEffectInstance> statusEffects, // Use proper StatusEffectInstance objects
+    GameType gameMode,
+    List<MobEffectInstance> statusEffects, // Use proper MobEffectInstance objects
     int fireTicks, // Fire/lava state
     int air, // Oxygen level (for underwater)
     int vehicleBubbleTime // Vehicle bubble state (for entities like striders)
@@ -34,12 +34,12 @@ public record PlayerState(
     
     // Codec for robust serialization of complex structures
     public static final Codec<PlayerState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-        Vec3d.CODEC.fieldOf("position").forGetter(PlayerState::position),
+        Vec3.CODEC.fieldOf("position").forGetter(PlayerState::position),
         Codec.FLOAT.fieldOf("yaw").forGetter(PlayerState::yaw),
         Codec.FLOAT.fieldOf("pitch").forGetter(PlayerState::pitch),
-        net.minecraft.util.Uuids.CODEC.fieldOf("worldId").forGetter(PlayerState::worldId),
-        GameMode.CODEC.fieldOf("gameMode").forGetter(PlayerState::gameMode),
-        StatusEffectInstance.CODEC.listOf().fieldOf("statusEffects").forGetter(PlayerState::statusEffects),
+        net.minecraft.core.UUIDUtil.CODEC.fieldOf("worldId").forGetter(PlayerState::worldId),
+        GameType.CODEC.fieldOf("gameMode").forGetter(PlayerState::gameMode),
+        MobEffectInstance.CODEC.listOf().fieldOf("statusEffects").forGetter(PlayerState::statusEffects),
         Codec.INT.fieldOf("fireTicks").forGetter(PlayerState::fireTicks),
         Codec.INT.fieldOf("air").forGetter(PlayerState::air),
         Codec.INT.fieldOf("vehicleBubbleTime").forGetter(PlayerState::vehicleBubbleTime)
@@ -48,29 +48,29 @@ public record PlayerState(
     /**
      * Captures the current state of a player
      */
-    public static PlayerState capture(ServerPlayerEntity player, RegistryWrapper.WrapperLookup registryLookup) {
+    public static PlayerState capture(ServerPlayer player, HolderLookup.Provider registryLookup) {
         // Capture position and world
-        Vec3d position = ServerPlayerCompat.getPos(player);
-        UUID worldId = ServerPlayerCompat.getWorld(player).getRegistryKey().getValue().hashCode() != 0 ?
-            UUID.nameUUIDFromBytes(ServerPlayerCompat.getWorld(player).getRegistryKey().getValue().toString().getBytes()) :
+        Vec3 position = ServerPlayerCompat.getPos(player);
+        UUID worldId = ServerPlayerCompat.getWorld(player).dimension().identifier().hashCode() != 0 ?
+            UUID.nameUUIDFromBytes(ServerPlayerCompat.getWorld(player).dimension().identifier().toString().getBytes()) :
             UUID.randomUUID();
         
         // Capture game mode
-        GameMode gameMode = player.interactionManager.getGameMode();
+        GameType gameMode = com.peek.utils.compat.PlayerCompat.getGameMode(player);
         
         // Capture rotation
-        float yaw = player.getYaw();
-        float pitch = player.getPitch();
+        float yaw = player.getYRot();
+        float pitch = player.getXRot();
         
-        // Capture status effects directly as StatusEffectInstance objects
-        Collection<StatusEffectInstance> activeEffects = player.getStatusEffects();
-        List<StatusEffectInstance> statusEffects = activeEffects.stream()
+        // Capture status effects directly as MobEffectInstance objects
+        Collection<MobEffectInstance> activeEffects = player.getActiveEffects();
+        List<MobEffectInstance> statusEffects = activeEffects.stream()
             .filter(effect -> effect != null && effect.getDuration() > 0) // Only save effects with remaining duration
             .toList();
         
         // Capture special states that need manual restoration
-        int fireTicks = player.getFireTicks(); // Fire/lava state
-        int air = player.getAir(); // Oxygen level
+        int fireTicks = player.getRemainingFireTicks(); // Fire/lava state
+        int air = player.getAirSupply(); // Oxygen level
         
         // Vehicle bubble time - this is more complex and may need different handling
         // For now, we'll capture it but it might not be fully functional without more research
@@ -93,35 +93,35 @@ public record PlayerState(
     /**
      * Restores this state to a player
      */
-    public void restore(ServerPlayerEntity player, RegistryWrapper.WrapperLookup registryLookup) {
+    public void restore(ServerPlayer player, HolderLookup.Provider registryLookup) {
         try {
             // Clear any effects gained during peek (beacon effects, potions, etc.) before restoring
-            player.clearStatusEffects();
+            player.removeAllEffects();
             
             // Restore game mode
-            player.changeGameMode(gameMode);
+            player.setGameMode(gameMode);
             
             // Restore position - teleport player back to original location (may throw exception)
             restorePosition(player);
             
             // Clear effects again after teleport (player might have gained beacon/area effects at original location)
-            player.clearStatusEffects();
+            player.removeAllEffects();
             
             // Restore special states that need manual restoration
             // Health and food are automatically handled by the game, so we skip them
             
             // Restore fire state
-            player.setFireTicks(fireTicks);
+            player.setRemainingFireTicks(fireTicks);
             
             // Restore air (oxygen) level
-            player.setAir(air);
+            player.setAirSupply(air);
 
             // Note: Experience, health, and food are automatically saved/restored by the game
-            // Restore the original effects directly from StatusEffectInstance objects
+            // Restore the original effects directly from MobEffectInstance objects
             if (statusEffects != null) {
-                for (StatusEffectInstance effect : statusEffects) {
+                for (MobEffectInstance effect : statusEffects) {
                     if (effect != null && effect.getDuration() > 0) {
-                        boolean success = player.addStatusEffect(effect);
+                        boolean success = player.addEffect(effect);
                     }
                 }
             }
@@ -137,19 +137,19 @@ public record PlayerState(
     /**
      * Restores the player's position, handling cross-world teleportation
      */
-    private void restorePosition(ServerPlayerEntity player) {
+    private void restorePosition(ServerPlayer player) {
         try {
             // Find the target world
-            ServerWorld targetWorld = null;
+            ServerLevel targetWorld = null;
 
             // Try to find the world by comparing world registry key hash
             if (ServerPlayerCompat.getServer(player) == null) {
                 return;
             }
 
-            for (ServerWorld world : ServerPlayerCompat.getServer(player).getWorlds()) {
+            for (ServerLevel world : ServerPlayerCompat.getServer(player).getAllLevels()) {
                 UUID currentWorldId = UUID.nameUUIDFromBytes(
-                    world.getRegistryKey().getValue().toString().getBytes()
+                    world.dimension().identifier().toString().getBytes()
                 );
                 if (currentWorldId.equals(worldId)) {
                     targetWorld = world;
@@ -174,3 +174,7 @@ public record PlayerState(
         }
     }
 }
+
+
+
+

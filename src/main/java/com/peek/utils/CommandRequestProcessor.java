@@ -2,9 +2,9 @@ package com.peek.utils;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.peek.data.peek.PeekRequest;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 
 import java.util.function.Function;
 
@@ -47,21 +47,21 @@ public class CommandRequestProcessor {
      * @return 处理结果
      */
     public static RequestResult processRequestWithOptionalRequester(
-            CommandContext<ServerCommandSource> context,
-            ServerPlayerEntity player,
+            CommandContext<CommandSourceStack> context,
+            ServerPlayer player,
             String requesterArgName) {
         
         PeekRequest request;
         
         // 尝试获取requester参数
         try {
-            ServerPlayerEntity requester = CommandUtils.getPlayerArgument(context, requesterArgName);
-            request = ValidationUtils.validatePendingRequest(player.getUuid(), player);
+            ServerPlayer requester = CommandUtils.getPlayerArgument(context, requesterArgName);
+            request = ValidationUtils.validatePendingRequest(player.getUUID(), player);
             
             if (requester != null) {
                 // 验证特定玩家是否发送了请求
-                if (request == null || !request.getRequesterId().equals(requester.getUuid())) {
-                    String errorMsg = Text.translatable("peek.error.no_request_from_player", 
+                if (request == null || !request.getRequesterId().equals(requester.getUUID())) {
+                    String errorMsg = Component.translatable("peek.error.no_request_from_player", 
                         requester.getName().getString()).getString();
                     return RequestResult.failure(errorMsg);
                 }
@@ -74,7 +74,7 @@ public class CommandRequestProcessor {
             
         } catch (Exception e) {
             // 没有提供requester参数，使用现有逻辑
-            request = ValidationUtils.validatePendingRequest(player.getUuid(), player);
+            request = ValidationUtils.validatePendingRequest(player.getUUID(), player);
             if (request == null) {
                 return RequestResult.failure("No pending request found");
             }
@@ -92,7 +92,7 @@ public class CommandRequestProcessor {
      * @return 命令执行结果(1=成功, 0=失败)
      */
     public static int executeRequestCommand(
-            CommandContext<ServerCommandSource> context,
+            CommandContext<CommandSourceStack> context,
             String requesterArgName,
             Function<RequestProcessorInput, Boolean> requestProcessor) {
         
@@ -102,7 +102,7 @@ public class CommandRequestProcessor {
             
             if (!result.isSuccess()) {
                 // 发送错误消息
-                player.sendMessage(Text.literal("§c" + result.getErrorMessage()), false);
+                player.sendSystemMessage(Component.literal("§c" + result.getErrorMessage()), false);
                 return 0;
             }
             
@@ -118,15 +118,16 @@ public class CommandRequestProcessor {
      * 请求处理器的输入参数封装
      */
     public static class RequestProcessorInput {
-        private final ServerPlayerEntity player;
+        private final ServerPlayer player;
         private final PeekRequest request;
         
-        public RequestProcessorInput(ServerPlayerEntity player, PeekRequest request) {
+        public RequestProcessorInput(ServerPlayer player, PeekRequest request) {
             this.player = player;
             this.request = request;
         }
         
-        public ServerPlayerEntity getPlayer() { return player; }
+        public ServerPlayer getPlayer() { return player; }
         public PeekRequest getRequest() { return request; }
     }
 }
+

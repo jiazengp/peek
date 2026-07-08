@@ -1,22 +1,22 @@
 package com.peek.utils.compat;
 
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.registry.DynamicRegistryManager;
-import net.minecraft.world.GameMode;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.world.level.GameType;
 
 /**
- * Compatibility layer for ServerPlayerEntity methods across different Minecraft versions.
+ * Compatibility layer for ServerPlayer methods across different Minecraft versions.
  * Handles API differences between 1.21.4 and 1.21.5+.
  */
 public class PlayerCompat {
     
     /**
-     * Gets the ServerWorld the player is currently in.
+     * Gets the ServerLevel the player is currently in.
      * Uses the appropriate method for each version.
      */
-    public static ServerWorld getServerWorld(ServerPlayerEntity player) {
+    public static ServerLevel getServerWorld(ServerPlayer player) {
         return ServerPlayerCompat.getWorld(player);
     }
     
@@ -24,8 +24,10 @@ public class PlayerCompat {
      * Gets the player's current game mode.
      * Uses the appropriate method for each version.
      */
-    public static GameMode getGameMode(ServerPlayerEntity player) {
-        #if MC_VER >= 1215
+    public static GameType getGameMode(ServerPlayer player) {
+        #if MC_VER >= 1219
+        return player.gameMode();
+        #elif MC_VER >= 1215
         return player.getGameMode();
         #else
         return player.interactionManager.getGameMode();
@@ -36,9 +38,11 @@ public class PlayerCompat {
      * Teleports a player to the specified location with proper API compatibility.
      * Handles different teleport method signatures across versions.
      */
-    public static void teleport(ServerPlayerEntity player, ServerWorld world, double x, double y, double z, 
+    public static void teleport(ServerPlayer player, ServerLevel world, double x, double y, double z, 
                                float yaw, float pitch) {
-        #if MC_VER >= 1212
+        #if MC_VER >= 1219
+        player.teleportTo(world, x, y, z, java.util.Set.of(), yaw, pitch, true);
+        #elif MC_VER >= 1212
         // 1.21.2+ uses 8-parameter version with Set and boolean
         player.teleport(world, x, y, z, java.util.Set.of(), yaw, pitch, true);
         #else
@@ -48,10 +52,10 @@ public class PlayerCompat {
     }
     
     /**
-     * Safely gets the DynamicRegistryManager from a player's server.
+     * Safely gets the RegistryAccess from a player's server.
      * Returns null if server or registry manager is not available.
      */
-    public static DynamicRegistryManager getRegistryManager(ServerPlayerEntity player) {
+    public static RegistryAccess getRegistryManager(ServerPlayer player) {
         if (player == null) {
             return null;
         }
@@ -61,18 +65,29 @@ public class PlayerCompat {
             return null;
         }
 
+        #if MC_VER >= 1219
+        return server.registryAccess();
+        #else
         return server.getRegistryManager();
+        #endif
     }
     
     /**
-     * Safely gets the DynamicRegistryManager from a server.
+     * Safely gets the RegistryAccess from a server.
      * Returns null if server or registry manager is not available.
      */
-    public static DynamicRegistryManager getRegistryManager(MinecraftServer server) {
+    public static RegistryAccess getRegistryManager(MinecraftServer server) {
         if (server == null) {
             return null;
         }
         
+        #if MC_VER >= 1219
+        return server.registryAccess();
+        #else
         return server.getRegistryManager();
+        #endif
     }
 }
+
+
+

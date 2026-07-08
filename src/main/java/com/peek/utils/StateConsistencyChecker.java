@@ -7,7 +7,7 @@ import com.peek.manager.PeekSessionManager;
 import com.peek.manager.constants.GameConstants;
 import com.peek.data.peek.PeekSession;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.HashSet;
 import java.util.List;
@@ -109,8 +109,8 @@ public class StateConsistencyChecker {
             UUID peekerId = session.getPeekerId();
             UUID targetId = session.getTargetId();
             
-            ServerPlayerEntity peeker = server.getPlayerManager().getPlayer(peekerId);
-            ServerPlayerEntity target = server.getPlayerManager().getPlayer(targetId);
+            ServerPlayer peeker = server.getPlayerList().getPlayer(peekerId);
+            ServerPlayer target = server.getPlayerList().getPlayer(targetId);
             
             if (peeker == null) {
                 PeekMod.LOGGER.warn("Found session {} with offline peeker {}", 
@@ -195,3 +195,4 @@ public class StateConsistencyChecker {
         PeekMod.LOGGER.info("Reset state consistency check statistics");
     }
 }
+

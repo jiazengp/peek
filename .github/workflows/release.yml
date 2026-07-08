@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
-      
+
       - name: get available versions
         id: versions
         run: |
@@ -42,10 +42,18 @@ jobs:
       - name: validate gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
 
+      - name: get java version for Minecraft ${{ matrix.mc_version }}
+        id: java-version
+        run: |
+          chmod +x .github/scripts/get-version-info.sh
+          JAVA_VER=$(.github/scripts/get-version-info.sh ${{ matrix.mc_version }} java_version)
+          echo "version=$JAVA_VER" >> $GITHUB_OUTPUT
+          echo "Java version for Minecraft ${{ matrix.mc_version }}: $JAVA_VER"
+
       - name: setup jdk
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: ${{ steps.java-version.outputs.version }}
           distribution: 'microsoft'
 
       - name: make gradle wrapper executable
@@ -57,10 +65,10 @@ jobs:
           # Extract mod info from gradle.properties and fabric.mod.json
           MOD_ARCHIVE_NAME=$(grep '^archives_base_name=' gradle.properties | cut -d'=' -f2)
           MOD_NAME=$(grep '"name":' src/main/resources/fabric.mod.json | sed 's/.*"name": *"\([^"]*\)".*/\1/')
-          
+
           echo "mod-archive-name=$MOD_ARCHIVE_NAME" >> $GITHUB_OUTPUT
           echo "mod-name=$MOD_NAME" >> $GITHUB_OUTPUT
-          
+
           echo "Detected mod archive name: $MOD_ARCHIVE_NAME"
           echo "Detected mod name: $MOD_NAME"
 
@@ -70,22 +78,25 @@ jobs:
           chmod +x .github/scripts/get-version-info.sh
           COMPATIBLE_VERSIONS_RAW=$(.github/scripts/get-version-info.sh ${{ matrix.mc_version }} compatible_minecraft_versions)
           RELEASE_TYPE=$(.github/scripts/get-version-info.sh ${{ matrix.mc_version }} release_type)
-          
+          JAVA_VER=$(.github/scripts/get-version-info.sh ${{ matrix.mc_version }} java_version)
+
           # Convert JSON array to multiline format for mc-publish
           # Remove brackets and quotes, then replace commas with newlines
           COMPATIBLE_VERSIONS=$(echo "$COMPATIBLE_VERSIONS_RAW" | sed 's/\[//g' | sed 's/\]//g' | sed 's/"//g' | sed 's/,/\n/g' | sed 's/^ *//g')
-          
+
           # Set multiline output for GitHub Actions
           echo "compatible-versions<<EOF" >> $GITHUB_OUTPUT
           echo "$COMPATIBLE_VERSIONS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
+
           echo "release-type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
-          
+          echo "java-version=$JAVA_VER" >> $GITHUB_OUTPUT
+
           echo "Minecraft ${{ matrix.mc_version }} compatible versions (raw): $COMPATIBLE_VERSIONS_RAW"
           echo "Minecraft ${{ matrix.mc_version }} compatible versions (parsed):"
           echo "$COMPATIBLE_VERSIONS"
           echo "Release type: $RELEASE_TYPE"
+          echo "Java version: $JAVA_VER"
 
       - name: build for specific version
         run: ./gradlew build -PmcVer=${{ matrix.mc_version }}
@@ -113,17 +124,17 @@ jobs:
           # Create changelog that links to the repository CHANGELOG.md
           cat > version_changelog.md << EOF
           ## ${{ steps.mod-info.outputs.mod-name }} ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}
-          
+
           Compatible Minecraft versions: ${{ steps.version-props.outputs.compatible-versions }}
-          
+
           For detailed changelog, please visit: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
-          
+
           ### Quick Links
           - [GitHub Repository](https://github.com/${{ github.repository }})
           - [Full Changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
           - [Issues & Bug Reports](https://github.com/${{ github.repository }}/issues)
           EOF
-          
+
           echo "Generated changelog for Minecraft ${{ matrix.mc_version }}:"
           cat version_changelog.md
 
@@ -142,34 +153,34 @@ jobs:
           # Modrinth configuration
           modrinth-id: 1yiACNNS
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          
-          # CurseForge configuration  
+
+          # CurseForge configuration
           curseforge-id: 1345082
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          
+
           # Project metadata - version specific
           name: "${{ steps.mod-info.outputs.mod-name }} ${{ github.ref_name }} for Minecraft ${{ matrix.mc_version }}"
           version: "${{ github.ref_name }}+${{ matrix.mc_version }}"
           changelog-file: version_changelog.md
-          
+
           # Files to publish - main JAR only (exclude sources and javadoc)
           files: ${{ steps.main-jar.outputs.main-jar }}
-          
+
           # Specific game versions from properties (multiline format)
           game-versions: |
             ${{ steps.version-props.outputs.compatible-versions }}
-          
+
           # Loader configuration
           loaders: fabric
-          
+
           # Version type from properties
           version-type: ${{ steps.version-props.outputs.release-type }}
-          
-          # Dependencies configuration 
+
+          # Dependencies configuration
           dependencies: |
             fabric-api(required)
             luckperms(optional)
             placeholder-api(optional)
-            
-          # Java version
-          java: 21
+
+          # Java version from properties
+          java: ${{ steps.version-props.outputs.java-version }}

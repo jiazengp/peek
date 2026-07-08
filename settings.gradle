@@ -34,11 +34,31 @@ def loadProperties() {
 		return 0
 	}
 	
+	def projectProperties = gradle.startParameter.projectProperties
+
 	// Determine target Minecraft version
-	def targetMcVer = System.getProperty('mcVer') ?: System.getProperty('minecraft_version') ?: availableVersions[0]
+	// Check: -PmcVer CLI arg > -Pminecraft_version CLI arg > -DmcVer CLI arg > -Dminecraft_version CLI arg > gradle.properties minecraft_version > newest available
+	def gradleProps = new Properties()
+	def gradlePropsFile = file("gradle.properties")
+	if (gradlePropsFile.exists()) {
+		gradlePropsFile.withInputStream { gradleProps.load(it) }
+	}
+	def targetMcVer = projectProperties.get('mcVer')?.toString()
+		?: projectProperties.get('minecraft_version')?.toString()
+		?: System.getProperty('mcVer')
+		?: System.getProperty('minecraft_version')
+		?: gradleProps.getProperty('minecraft_version')
+		?: availableVersions[0]
 	
 	if (!targetMcVer) {
 		throw new GradleException("No Minecraft version specified and no version properties found")
+	}
+
+	if (!availableVersions.contains(targetMcVer)) {
+		def normalizedCandidate = availableVersions.find { it ==~ /^${java.util.regex.Pattern.quote(targetMcVer)}\.\d+(\.\d+)?$/ }
+		if (normalizedCandidate != null) {
+			targetMcVer = normalizedCandidate
+		}
 	}
 	
 	def propertiesFile = file("version_properties/${targetMcVer}.properties")
@@ -55,10 +75,12 @@ def loadProperties() {
 	gradle.ext.mcVers = availableVersions
 	gradle.ext.mcIndex = availableVersions.indexOf(targetMcVer)
 	gradle.ext.versionProperties = versionProperties
-	
+
 	println "Loading version properties for Minecraft ${targetMcVer}"
 	println "Available versions: ${availableVersions.join(', ')}"
 }
 
 // Load properties during settings evaluation
 loadProperties()
+
+

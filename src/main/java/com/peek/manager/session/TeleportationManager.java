@@ -9,11 +9,10 @@ import com.peek.utils.MessageBuilder;
 import com.peek.utils.SoundManager;
 import com.peek.utils.compat.ProfileCompat;
 import com.peek.utils.compat.ServerPlayerCompat;
-import net.minecraft.entity.Entity;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.TeleportTarget;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.portal.TeleportTransition;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,10 +51,10 @@ public class TeleportationManager {
     /**
      * Teleports spectator peeker to target's exact real-time position for accurate following
      */
-    public void teleportPeekerToTarget(ServerPlayerEntity peeker, ServerPlayerEntity target) {
+    public void teleportPeekerToTarget(ServerPlayer peeker, ServerPlayer target) {
         try {
-            Vec3d targetPos = ServerPlayerCompat.getPos(target);
-            Vec3d peekerPos = ServerPlayerCompat.getPos(peeker);
+            Vec3 targetPos = ServerPlayerCompat.getPos(target);
+            Vec3 peekerPos = ServerPlayerCompat.getPos(peeker);
 
             PeekMod.LOGGER.debug("Teleporting {} from {} to target {} at {}",
                 ProfileCompat.getName(peeker.getGameProfile()), peekerPos, ProfileCompat.getName(target.getGameProfile()), targetPos);
@@ -69,16 +68,16 @@ public class TeleportationManager {
             if (ServerPlayerCompat.getWorld(peeker) != ServerPlayerCompat.getWorld(target)) {
                 // Cross-dimensional teleport
                 PeekMod.LOGGER.debug("Cross-dimension spectator follow from {} to {}",
-                    ServerPlayerCompat.getWorld(peeker).getRegistryKey().getValue(),
-                    ServerPlayerCompat.getWorld(target).getRegistryKey().getValue());
+                    ServerPlayerCompat.getWorld(peeker).dimension().identifier(),
+                    ServerPlayerCompat.getWorld(target).dimension().identifier());
 
-                TeleportTarget teleportTarget = new TeleportTarget(com.peek.utils.compat.PlayerCompat.getServerWorld(target), 
+                TeleportTransition teleportTarget = new TeleportTransition(com.peek.utils.compat.PlayerCompat.getServerWorld(target), 
                     targetPos, // Use exact target position for spectator
-                    Vec3d.ZERO, target.getYaw(), target.getPitch(), 
-                    (Entity entity) -> {});
+                    Vec3.ZERO, target.getYRot(), target.getXRot(), 
+                    TeleportTransition.DO_NOTHING);
                     
                 PeekMod.LOGGER.debug("Executing cross-dimensional teleport with TeleportTarget");
-                peeker.teleportTo(teleportTarget);
+                peeker.teleport(teleportTarget);
                 PeekMod.LOGGER.debug("Cross-dimensional teleport completed");
             } else {
                 // Same world teleport - use single reliable method
@@ -86,13 +85,13 @@ public class TeleportationManager {
                     targetPos.x, targetPos.y, targetPos.z);
                 
                 // Use standard teleport method with sync enabled
-                peeker.teleport(targetPos.x, targetPos.y, targetPos.z, true);
+                peeker.teleportTo(targetPos.x, targetPos.y, targetPos.z);
                 PeekMod.LOGGER.debug("Same-world teleport completed");
             }
             
             // Verify teleportation success
-            Vec3d newPeekerPos = ServerPlayerCompat.getPos(peeker);
-            Vec3d currentTargetPos = ServerPlayerCompat.getPos(target);
+            Vec3 newPeekerPos = ServerPlayerCompat.getPos(peeker);
+            Vec3 currentTargetPos = ServerPlayerCompat.getPos(target);
             double distance = newPeekerPos.distanceTo(currentTargetPos);
 
             if (distance > 5.0) {
@@ -116,22 +115,18 @@ public class TeleportationManager {
      * Handles when peeker exceeds allowed movement distance from target
      * @return true if session should be ended, false otherwise
      */
-    public boolean handlePeekerDistanceExceeded(ServerPlayerEntity peeker, ServerPlayerEntity target, PeekSession session) {
+    public boolean handlePeekerDistanceExceeded(ServerPlayer peeker, ServerPlayer target, PeekSession session) {
         if (ModConfigManager.shouldTeleportBackOnDistanceExceeded()) {
             // Teleport peeker back to target (sound will be played in teleportPeekerToTarget method)
             teleportPeekerToTarget(peeker, target);
             
-            Text message = MessageBuilder.warning("peek.message.teleported_back_distance");
-            peeker.sendMessage(message, false);
+            Component message = MessageBuilder.warning("peek.message.teleported_back");
+            peeker.sendSystemMessage(message, false);
 
             PeekMod.LOGGER.debug("Teleported peeker {} back to target due to distance exceeded",
                 ProfileCompat.getName(peeker.getGameProfile()));
             return false; // Continue session after teleporting back
         } else if (ModConfigManager.shouldEndPeekOnDistanceExceeded()) {
-            // End the peek session
-            Text message = MessageBuilder.message("peek.message.ended_distance");
-            peeker.sendMessage(message, false);
-
             PeekMod.LOGGER.debug("Ending peek session due to peeker {} exceeding distance limit",
                 ProfileCompat.getName(peeker.getGameProfile()));
             return true; // End session
@@ -215,3 +210,5 @@ public class TeleportationManager {
         }
     }
 }
+
+

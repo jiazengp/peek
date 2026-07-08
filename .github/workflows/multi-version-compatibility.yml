@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
-      
+
       - name: get minecraft versions
         id: get-versions
         run: |
@@ -34,7 +34,7 @@ jobs:
       matrix:
         minecraft-version: ${{ fromJson(needs.generate-matrix.outputs.minecraft-versions) }}
       fail-fast: false
-    
+
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
@@ -42,10 +42,18 @@ jobs:
       - name: validate gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
 
+      - name: get java version for Minecraft ${{ matrix.minecraft-version }}
+        id: java-version
+        run: |
+          chmod +x .github/scripts/get-version-info.sh
+          JAVA_VER=$(.github/scripts/get-version-info.sh ${{ matrix.minecraft-version }} java_version)
+          echo "version=$JAVA_VER" >> $GITHUB_OUTPUT
+          echo "Java version for Minecraft ${{ matrix.minecraft-version }}: $JAVA_VER"
+
       - name: setup jdk
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: ${{ steps.java-version.outputs.version }}
           distribution: 'microsoft'
 
       - name: make gradle wrapper executable
@@ -62,12 +70,12 @@ jobs:
       - name: validate version configuration
         run: |
           echo "Validating configuration for Minecraft ${{ matrix.minecraft-version }}..."
-          
+
           # Check required properties exist
           PROPS_FILE="version_properties/${{ matrix.minecraft-version }}.properties"
-          
-          required_props=("minecraft_version" "fabric_loader_version" "fabric_version" "yarn_mappings_version")
-          
+
+          required_props=("minecraft_version" "fabric_loader_version" "fabric_version")
+
           for prop in "${required_props[@]}"; do
             if ! grep -q "^${prop}=" "$PROPS_FILE"; then
               echo "ERROR: Missing required property: $prop"
@@ -93,61 +101,55 @@ jobs:
           # Extract mod info from gradle.properties and fabric.mod.json
           MOD_ARCHIVE_NAME=$(grep '^archives_base_name=' gradle.properties | cut -d'=' -f2)
           MOD_NAME=$(grep '"name":' src/main/resources/fabric.mod.json | sed 's/.*"name": *"\([^"]*\)".*/\1/')
-          
+
           echo "mod-archive-name=$MOD_ARCHIVE_NAME" >> $GITHUB_OUTPUT
           echo "mod-name=$MOD_NAME" >> $GITHUB_OUTPUT
-          
+
           echo "Detected mod archive name: $MOD_ARCHIVE_NAME"
           echo "Detected mod name: $MOD_NAME"
 
       - name: verify build artifacts
         run: |
           echo "Verifying build artifacts for Minecraft ${{ matrix.minecraft-version }}..."
-          
+
           # Check JAR file exists
           if ! ls build/libs/${{ steps.mod-info.outputs.mod-archive-name }}-*+${{ matrix.minecraft-version }}.jar >/dev/null 2>&1; then
             echo "ERROR: JAR file not found for Minecraft ${{ matrix.minecraft-version }}"
             exit 1
           fi
-          
+
           # Check JAR file size (should be reasonable)
           jar_file=$(ls build/libs/${{ steps.mod-info.outputs.mod-archive-name }}-*+${{ matrix.minecraft-version }}.jar)
           jar_size=$(stat -c%s "$jar_file")
-          
+
           if [ "$jar_size" -lt 10000 ]; then
             echo "ERROR: JAR file seems too small ($jar_size bytes)"
             exit 1
           fi
-          
-          echo "✓ JAR file created successfully: $(basename "$jar_file") ($jar_size bytes)"
 
-      - name: run compatibility tests
-        if: matrix.minecraft-version == '1.21.6'
-        run: |
-          echo "Running compatibility tests for Minecraft ${{ matrix.minecraft-version }}..."
-          ./gradlew runGameTest -PmcVer=${{ matrix.minecraft-version }} || echo "GameTest not available for this version - skipping"
+          echo "✓ JAR file created successfully: $(basename "$jar_file") ($jar_size bytes)"
 
       - name: verify mod metadata
         run: |
           echo "Verifying mod metadata for Minecraft ${{ matrix.minecraft-version }}..."
-          
+
           jar_file=$(ls build/libs/${{ steps.mod-info.outputs.mod-archive-name }}-*+${{ matrix.minecraft-version }}.jar)
-          
+
           # Extract and check fabric.mod.json
           unzip -q "$jar_file" fabric.mod.json -d temp_extract/
-          
+
           if [ ! -f "temp_extract/fabric.mod.json" ]; then
             echo "ERROR: fabric.mod.json not found in JAR"
             exit 1
           fi
-          
+
           # Verify mod metadata contains correct version info
           if ! grep -q "${{ matrix.minecraft-version }}" temp_extract/fabric.mod.json; then
             echo "ERROR: fabric.mod.json does not contain correct Minecraft version"
             cat temp_extract/fabric.mod.json
             exit 1
           fi
-          
+
           echo "✓ Mod metadata verified"
           rm -rf temp_extract/
 
@@ -175,11 +177,11 @@ jobs:
     needs: [generate-matrix, compatibility-test]
     runs-on: ubuntu-latest
     if: always()
-    
+
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -192,7 +194,7 @@ jobs:
           echo "Build Status: ${{ needs.compatibility-test.result }}" >> compatibility-report.md
           echo "" >> compatibility-report.md
           echo "## Tested Versions" >> compatibility-report.md
-          
+
           # Get versions dynamically from version_properties directory
           for props_file in version_properties/*.properties; do
             if [ -f "$props_file" ]; then
@@ -204,11 +206,11 @@ jobs:
               fi
             fi
           done
-          
+
           echo "" >> compatibility-report.md
           echo "## Build Artifacts" >> compatibility-report.md
           find artifacts/ -name "*.jar" -exec basename {} \; | sort >> compatibility-report.md
-          
+
           cat compatibility-report.md
 
       - name: Upload compatibility report

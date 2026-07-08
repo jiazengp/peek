@@ -16,8 +16,9 @@ for /f "tokens=2 delims=:" %%a in ('findstr "name" src\main\resources\fabric.mod
 echo Starting multi-version build for %MOD_NAME% mod...
 echo Build started at: %DATE% %TIME%
 
-REM Create build output directory
-if not exist "build\buildAllJars" mkdir build\buildAllJars
+REM Reset build output directory so stale jars from removed versions do not survive
+if exist "build\buildAllJars" rmdir /s /q "build\buildAllJars"
+mkdir build\buildAllJars
 
 REM Initialize counters
 set total_versions=0

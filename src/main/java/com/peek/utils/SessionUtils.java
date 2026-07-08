@@ -9,9 +9,9 @@ import com.peek.manager.exceptions.SessionException;
 import com.peek.manager.constants.ErrorCodes;
 import com.peek.utils.compat.ProfileCompat;
 import com.peek.utils.compat.ServerPlayerCompat;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -37,7 +37,7 @@ public class SessionUtils {
      * @return null if successful, error message if failed
      */
     public static String handleTargetingSessionCleanup(
-            UUID peekerId, UUID targetId, ServerPlayerEntity peeker,
+            UUID peekerId, UUID targetId, ServerPlayer peeker,
             Map<UUID, Set<UUID>> targetToSession,
             Map<UUID, PeekSession> activeSessions,
             Map<String, Long> recentCircularPeeks,
@@ -80,13 +80,13 @@ public class SessionUtils {
                     session.getPeekerName(), ProfileCompat.getName(peeker.getGameProfile()), isCircularPeek);
 
                 // Send better notification to interrupted player
-                ServerPlayerEntity interruptedPlayer = ServerPlayerCompat.getServer(peeker).getPlayerManager().getPlayer(otherPeekerId);
+                ServerPlayer interruptedPlayer = ServerPlayerCompat.getServer(peeker).getPlayerList().getPlayer(otherPeekerId);
                 if (interruptedPlayer != null) {
                     String messageKey = isCircularPeek ?
                         "peek.message.interrupted_by_circular_peek" :
                         "peek.message.interrupted_by_target_peek";
-                    Text message = Text.translatable(messageKey, ProfileCompat.getName(peeker.getGameProfile()));
-                    interruptedPlayer.sendMessage(message, false);
+                    Component message = Component.translatable(messageKey, ProfileCompat.getName(peeker.getGameProfile()));
+                    interruptedPlayer.sendSystemMessage(message, false);
 
                     PeekMod.LOGGER.info("Notified {} about their peek session being interrupted by {}",
                         session.getPeekerName(), ProfileCompat.getName(peeker.getGameProfile()));
@@ -109,7 +109,7 @@ public class SessionUtils {
             Map<UUID, PeekSession> activeSessions,
             Map<UUID, UUID> peekerToSession,
             Map<UUID, Set<UUID>> targetToSession,
-            ServerPlayerEntity peeker,
+            ServerPlayer peeker,
             RollbackHandler rollbackHandler) {
         
         PeekMod.LOGGER.error("Failed to teleport peeker, rolling back session");
@@ -137,23 +137,23 @@ public class SessionUtils {
      * Sends appropriate notification messages for session start
      */
     public static void sendSessionStartNotifications(
-            ServerPlayerEntity peeker, ServerPlayerEntity target,
+            ServerPlayer peeker, ServerPlayer target,
             boolean wasSwitching) {
         
         // Send notifications - check if this was a switch
         String messageKey = wasSwitching ? "peek.peek_switched" : "peek.peek_started";
-        Text peekerMessage = Text.translatable(messageKey, ProfileCompat.getName(target.getGameProfile()))
-            .formatted(Formatting.GREEN);
-        peeker.sendMessage(peekerMessage, false);
+        Component peekerMessage = Component.translatable(messageKey, ProfileCompat.getName(target.getGameProfile()))
+            .withStyle(ChatFormatting.GREEN);
+        peeker.sendSystemMessage(peekerMessage, false);
 
         if (wasSwitching) {
             PeekMod.LOGGER.info("Player {} successfully switched peek from previous target to {}",
                 ProfileCompat.getName(peeker.getGameProfile()), ProfileCompat.getName(target.getGameProfile()));
         }
 
-        Text targetMessage = Text.translatable("peek.being_peeked", ProfileCompat.getName(peeker.getGameProfile()))
-            .formatted(Formatting.YELLOW);
-        target.sendMessage(targetMessage, false);
+        Component targetMessage = Component.translatable("peek.being_peeked", ProfileCompat.getName(peeker.getGameProfile()))
+            .withStyle(ChatFormatting.YELLOW);
+        target.sendSystemMessage(targetMessage, false);
         
         // Play sound to target indicating they are being peeked
         SoundManager.playBeingPeekedSound(target);
@@ -185,7 +185,7 @@ public class SessionUtils {
      * Handles player state restoration for session end
      */
     public static void handlePlayerStateRestoration(
-            ServerPlayerEntity peeker, PeekSession session, 
+            ServerPlayer peeker, PeekSession session, 
             PlayerPeekDataHandler dataHandler) {
         
         PlayerState originalState = session.getOriginalPeekerState();
@@ -231,21 +231,21 @@ public class SessionUtils {
             boolean voluntary) {
         
         // Send notification to peeker
-        ServerPlayerEntity peeker = server.getPlayerManager().getPlayer(session.getPeekerId());
+        ServerPlayer peeker = server.getPlayerList().getPlayer(session.getPeekerId());
         if (peeker != null) {
             String reason = voluntary ? "manually stopped" : "automatically stopped";
-            net.minecraft.text.Text endMessage = net.minecraft.text.Text.translatable("peek.message.ended_normal")
-                .formatted(net.minecraft.util.Formatting.YELLOW);
-            peeker.sendMessage(endMessage, false);
+            net.minecraft.network.chat.Component endMessage = net.minecraft.network.chat.Component.translatable("peek.message.ended_normal")
+                .withStyle(net.minecraft.ChatFormatting.YELLOW);
+            peeker.sendSystemMessage(endMessage, false);
         }
         
         // Send notification to target (the player who was being peeked)
-        ServerPlayerEntity target = server.getPlayerManager().getPlayer(session.getTargetId());
+        ServerPlayer target = server.getPlayerList().getPlayer(session.getTargetId());
         if (target != null) {
             String reasonKey = voluntary ? "manually" : "automatically";
-            net.minecraft.text.Text targetMessage = net.minecraft.text.Text.translatable("peek.message.ended_by_target", session.getPeekerName())
-                .formatted(net.minecraft.util.Formatting.GRAY);
-            target.sendMessage(targetMessage, false);
+            net.minecraft.network.chat.Component targetMessage = net.minecraft.network.chat.Component.translatable("peek.message.ended_by_target", session.getPeekerName())
+                .withStyle(net.minecraft.ChatFormatting.GRAY);
+            target.sendSystemMessage(targetMessage, false);
         }
     }
     
@@ -253,15 +253,15 @@ public class SessionUtils {
      * Interface for handling rollback operations
      */
     public interface RollbackHandler {
-        void handleSwitchingRollback(ServerPlayerEntity peeker, PeekSession sessionToRestore, UUID peekerId);
-        void handleNewSessionRollback(ServerPlayerEntity peeker);
+        void handleSwitchingRollback(ServerPlayer peeker, PeekSession sessionToRestore, UUID peekerId);
+        void handleNewSessionRollback(ServerPlayer peeker);
     }
     
     /**
      * Interface for handling PlayerData operations
      */
     public interface PlayerPeekDataHandler {
-        void clearSavedState(ServerPlayerEntity player);
+        void clearSavedState(ServerPlayer player);
         void saveOfflineState(net.minecraft.server.MinecraftServer server, UUID playerId, PlayerState state);
     }
     
@@ -285,3 +285,4 @@ public class SessionUtils {
         }
     }
 }
+

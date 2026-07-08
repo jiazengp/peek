@@ -4,12 +4,12 @@ import com.peek.PeekMod;
 import com.peek.config.ModConfigManager;
 import com.peek.utils.compat.ProfileCompat;
 import com.peek.utils.compat.ServerPlayerCompat;
-import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.Identifier;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.resources.Identifier;
 
 /**
  * Manages sound notifications for peek operations
@@ -19,7 +19,7 @@ public class SoundManager {
     /**
      * Plays a sound for request received notification (only to the player)
      */
-    public static void playRequestReceivedSound(ServerPlayerEntity player) {
+    public static void playRequestReceivedSound(ServerPlayer player) {
         if (!ModConfigManager.isSoundsEnabled()) return;
         
         playSoundToPlayer(player, 
@@ -31,7 +31,7 @@ public class SoundManager {
     /**
      * Plays a sound for invite received notification (only to the player)
      */
-    public static void playInviteReceivedSound(ServerPlayerEntity player) {
+    public static void playInviteReceivedSound(ServerPlayer player) {
         if (!ModConfigManager.isSoundsEnabled()) return;
         
         playSoundToPlayer(player,
@@ -43,7 +43,7 @@ public class SoundManager {
     /**
      * Plays a sound when teleporting to target (only to the peeker)
      */
-    public static void playTeleportToTargetSound(ServerPlayerEntity player) {
+    public static void playTeleportToTargetSound(ServerPlayer player) {
         if (!ModConfigManager.isSoundsEnabled()) return;
         
         playSoundToPlayer(player,
@@ -55,7 +55,7 @@ public class SoundManager {
     /**
      * Plays a sound when teleporting back after peek ends (only to the peeker)
      */
-    public static void playTeleportBackSound(ServerPlayerEntity player) {
+    public static void playTeleportBackSound(ServerPlayer player) {
         if (!ModConfigManager.isSoundsEnabled()) return;
         
         playSoundToPlayer(player,
@@ -67,7 +67,7 @@ public class SoundManager {
     /**
      * Plays a sound when being peeked by someone (to the world around the target)
      */
-    public static void playBeingPeekedSound(ServerPlayerEntity player) {
+    public static void playBeingPeekedSound(ServerPlayer player) {
         if (!ModConfigManager.isSoundsEnabled()) return;
         
         playSoundToWorld(player,
@@ -79,7 +79,7 @@ public class SoundManager {
     /**
      * Plays a sound when peek session ends (only to the peeker)
      */
-    public static void playSessionEndSound(ServerPlayerEntity player) {
+    public static void playSessionEndSound(ServerPlayer player) {
         if (!ModConfigManager.isSoundsEnabled()) return;
         
         playSoundToPlayer(player,
@@ -91,7 +91,7 @@ public class SoundManager {
     /**
      * Plays a sound only to a specific player (private sound)
      */
-    private static void playSoundToPlayer(ServerPlayerEntity player, String soundId, float volume, float pitch) {
+    private static void playSoundToPlayer(ServerPlayer player, String soundId, float volume, float pitch) {
         try {
             Identifier soundIdentifier = Identifier.tryParse(soundId);
             if (soundIdentifier == null) {
@@ -99,7 +99,7 @@ public class SoundManager {
                 return;
             }
             
-            SoundEvent soundEvent = Registries.SOUND_EVENT.get(soundIdentifier);
+            SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.getValue(soundIdentifier);
             if (soundEvent == null) {
                 PeekMod.LOGGER.warn("Sound event not found for identifier: {}", soundId);
                 return;
@@ -110,12 +110,12 @@ public class SoundManager {
             pitch = Math.max(0.1f, Math.min(2.0f, pitch));
             
             // Send sound packet directly to the player (private)
-            player.networkHandler.sendPacket(
-                new net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket(
-                    Registries.SOUND_EVENT.getEntry(soundEvent),
-                    SoundCategory.PLAYERS,
+            player.connection.send(
+                new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+                    BuiltInRegistries.SOUND_EVENT.wrapAsHolder(soundEvent),
+                    SoundSource.PLAYERS,
                     player.getX(), player.getY(), player.getZ(),
-                    volume, pitch, ServerPlayerCompat.getWorld(player).random.nextLong()
+                    volume, pitch, ServerPlayerCompat.getWorld(player).getRandom().nextLong()
                 )
             );
 
@@ -131,7 +131,7 @@ public class SoundManager {
     /**
      * Plays a sound to the world around a player (public sound)
      */
-    private static void playSoundToWorld(ServerPlayerEntity player, String soundId, float volume, float pitch) {
+    private static void playSoundToWorld(ServerPlayer player, String soundId, float volume, float pitch) {
         try {
             Identifier soundIdentifier = Identifier.tryParse(soundId);
             if (soundIdentifier == null) {
@@ -139,7 +139,7 @@ public class SoundManager {
                 return;
             }
             
-            SoundEvent soundEvent = Registries.SOUND_EVENT.get(soundIdentifier);
+            SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.getValue(soundIdentifier);
             if (soundEvent == null) {
                 PeekMod.LOGGER.warn("Sound event not found for identifier: {}", soundId);
                 return;
@@ -151,7 +151,7 @@ public class SoundManager {
             
             // Play sound to the world at player's position (public)
             ServerPlayerCompat.getWorld(player).playSound(null, player.getX(), player.getY(), player.getZ(),
-                soundEvent, SoundCategory.PLAYERS, volume, pitch);
+                soundEvent, SoundSource.PLAYERS, volume, pitch);
 
             PeekMod.LOGGER.debug("Played world sound {} at {} (volume: {}, pitch: {})",
                 soundId, ProfileCompat.getName(player.getGameProfile()), volume, pitch);
@@ -162,3 +162,7 @@ public class SoundManager {
         }
     }
 }
+
+
+
+

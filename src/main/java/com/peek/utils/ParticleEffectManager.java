@@ -5,12 +5,12 @@ import com.peek.config.ModConfigManager;
 import com.peek.manager.constants.GameConstants;
 import com.peek.utils.compat.ProfileCompat;
 import com.peek.utils.compat.ServerPlayerCompat;
-import net.minecraft.particle.DustParticleEffect;
-import net.minecraft.particle.ParticleEffect;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 
 import java.util.HashSet;
@@ -46,7 +46,7 @@ public class ParticleEffectManager {
      * Process particle effects for currently tracked peekers
      * Called from PeekSessionManager.onServerTick()
      */
-    public static void processParticleEffects(ServerWorld world) {
+    public static void processParticleEffects(ServerLevel world) {
         if (!ModConfigManager.isParticleEffectsEnabled()) {
             return;
         }
@@ -63,7 +63,7 @@ public class ParticleEffectManager {
             if (tickCount >= frequencyTicks) {
                 playerTickCounters.put(peekerId, 0); // Reset counter
                 
-                ServerPlayerEntity peeker = world.getServer().getPlayerManager().getPlayer(peekerId);
+                ServerPlayer peeker = world.getServer().getPlayerList().getPlayer(peekerId);
                 if (peeker != null && peeker.isSpectator()) {
                     spawnParticleEffectForPlayer(peeker, world);
                 }
@@ -150,9 +150,9 @@ public class ParticleEffectManager {
     /**
      * Spawn particle effect for a specific player
      */
-    private static void spawnParticleEffectForPlayer(ServerPlayerEntity peeker, ServerWorld world) {
+    private static void spawnParticleEffectForPlayer(ServerPlayer peeker, ServerLevel world) {
         try {
-            UUID peekerId = peeker.getUuid();
+            UUID peekerId = peeker.getUUID();
             UUID targetId = peekerToTarget.get(peekerId);
             
             if (targetId == null) {
@@ -160,10 +160,10 @@ public class ParticleEffectManager {
             }
             
             // Get peeker's current position
-            Vec3d peekerPos = ServerPlayerCompat.getPos(peeker);
+            Vec3 peekerPos = ServerPlayerCompat.getPos(peeker);
             
             // Create particle effect
-            ParticleEffect particleEffect = createParticleEffect();
+            ParticleOptions particleEffect = createParticleEffect();
             if (particleEffect == null) {
                 return; // Invalid particle type configured
             }
@@ -190,7 +190,7 @@ public class ParticleEffectManager {
                     offsetZ -= GameConstants.PARTICLE_PUSH_BACK_DISTANCE; // Push particles behind the player
                 }
                 
-                Vec3d particlePos = peekerPos.add(offsetX, offsetY, offsetZ);
+                Vec3 particlePos = peekerPos.add(offsetX, offsetY, offsetZ);
                 
                 // Randomize particle velocity to create natural movement
                 double velocityX = (RANDOM.nextDouble() - 0.5) * velocity;
@@ -200,7 +200,7 @@ public class ParticleEffectManager {
                 // Determine who should see the particles
                 if (ModConfigManager.isParticleOnlyVisibleToTarget()) {
                     // Only spawn for the target player
-                    ServerPlayerEntity target = world.getServer().getPlayerManager().getPlayer(targetId);
+                    ServerPlayer target = world.getServer().getPlayerList().getPlayer(targetId);
                     if (target != null) {
                         spawnParticleForPlayer(target, particleEffect, particlePos, velocityX, velocityY, velocityZ);
                     }
@@ -220,7 +220,7 @@ public class ParticleEffectManager {
     /**
      * Create the configured particle effect
      */
-    private static ParticleEffect createParticleEffect() {
+    private static ParticleOptions createParticleEffect() {
         String particleType = ModConfigManager.getParticleType().toUpperCase();
         
         try {
@@ -253,7 +253,7 @@ public class ParticleEffectManager {
     }
     
     /**
-     * Parse hex color string to int for DustParticleEffect
+     * Parse hex color string to int for DustParticleOptions
      */
     private static int parseHexColorToInt(String hexColor) {
         if (hexColor == null || hexColor.trim().isEmpty()) {
@@ -282,10 +282,10 @@ public class ParticleEffectManager {
     /**
      * Spawn particle for a specific player only
      */
-    private static void spawnParticleForPlayer(ServerPlayerEntity player, ParticleEffect particle, 
-                                             Vec3d pos, double velocityX, double velocityY, double velocityZ) {
+    private static void spawnParticleForPlayer(ServerPlayer player, ParticleOptions particle, 
+                                             Vec3 pos, double velocityX, double velocityY, double velocityZ) {
         try {
-            ServerWorld world = com.peek.utils.compat.PlayerCompat.getServerWorld(player);
+            ServerLevel world = com.peek.utils.compat.PlayerCompat.getServerWorld(player);
             // Use the compatible spawnParticles method
             com.peek.utils.compat.ParticleCompat.spawnParticles(world, player, particle, pos.x, pos.y, pos.z, 1, velocityX, velocityY, velocityZ, 0);
         } catch (Exception e) {
@@ -296,17 +296,17 @@ public class ParticleEffectManager {
     /**
      * Spawn particles for nearby players within view distance
      */
-    private static void spawnParticleForNearbyPlayers(ServerWorld world, ParticleEffect particle, 
-                                                    Vec3d pos, double velocityX, double velocityY, double velocityZ, Vec3d centerPos) {
+    private static void spawnParticleForNearbyPlayers(ServerLevel world, ParticleOptions particle, 
+                                                    Vec3 pos, double velocityX, double velocityY, double velocityZ, Vec3 centerPos) {
         try {
             double maxViewDistance = ModConfigManager.getParticleMaxViewDistance();
             
             if (maxViewDistance <= 0) {
                 // No distance limit, spawn for all players in the dimension
-                world.spawnParticles(particle, pos.x, pos.y, pos.z, 1, velocityX, velocityY, velocityZ, 0);
+                world.sendParticles(particle, pos.x, pos.y, pos.z, 1, velocityX, velocityY, velocityZ, 0);
             } else {
                 // Spawn only for players within view distance
-                for (ServerPlayerEntity player : world.getPlayers()) {
+                for (ServerPlayer player : world.players()) {
                     double distance = ServerPlayerCompat.getPos(player).distanceTo(centerPos);
                     if (distance <= maxViewDistance) {
                         spawnParticleForPlayer(player, particle, pos, velocityX, velocityY, velocityZ);
@@ -350,3 +350,6 @@ public class ParticleEffectManager {
         return peekers != null ? new HashSet<>(peekers) : new HashSet<>();
     }
 }
+
+
+

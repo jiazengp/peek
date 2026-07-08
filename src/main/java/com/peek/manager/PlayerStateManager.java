@@ -8,8 +8,8 @@ import com.peek.manager.constants.GameConstants;
 import com.peek.manager.constants.PeekConstants;
 import com.peek.utils.compat.ProfileCompat;
 import eu.pb4.playerdata.api.PlayerDataApi;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 
 import java.util.Map;
 import java.util.UUID;
@@ -26,9 +26,9 @@ public class PlayerStateManager extends BaseManager {
      * Saves a player's state for later restoration
      * This is used both for normal peek operations and crash recovery
      */
-    public PeekConstants.Result<PlayerState> savePlayerState(ServerPlayerEntity player, boolean persistent) {
+    public PeekConstants.Result<PlayerState> savePlayerState(ServerPlayer player, boolean persistent) {
         try {
-            UUID playerId = player.getUuid();
+            UUID playerId = player.getUUID();
             
             // Capture current state
             var registryManager = com.peek.utils.compat.PlayerCompat.getRegistryManager(player);
@@ -56,7 +56,7 @@ public class PlayerStateManager extends BaseManager {
 
         } catch (Exception e) {
             PeekMod.LOGGER.error("Error saving player state for {}", ProfileCompat.getName(player.getGameProfile()), e);
-            return PeekConstants.Result.failure(Text.translatable("peek.message.failed_to_save_state").getString());
+            return PeekConstants.Result.failure(Component.translatable("peek.message.failed_to_save_state").getString());
         }
     }
 
@@ -116,7 +116,7 @@ public class PlayerStateManager extends BaseManager {
     /**
      * Performs crash recovery for a player who was peeking when server shut down
      */
-    public PeekConstants.Result<String> performCrashRecovery(ServerPlayerEntity player) {
+    public PeekConstants.Result<String> performCrashRecovery(ServerPlayer player) {
         try {
             PeekMod.LOGGER.debug("Crash recovery: Getting player data for {}", ProfileCompat.getName(player.getGameProfile()));
             PlayerPeekData playerData = com.peek.data.peek.PlayerPeekData.getOrCreate(player);
@@ -155,7 +155,7 @@ public class PlayerStateManager extends BaseManager {
                     PeekMod.LOGGER.debug("Cleared saved state after successful recovery for player {}", ProfileCompat.getName(player.getGameProfile()));
 
                     PeekMod.LOGGER.debug("Successfully performed crash recovery for player {}", ProfileCompat.getName(player.getGameProfile()));
-                    return PeekConstants.Result.success(Text.translatable("peek.message.crash_recovery_completed").getString());
+                    return PeekConstants.Result.success(Component.translatable("peek.message.crash_recovery_completed").getString());
 
                 } catch (Exception restoreException) {
                     PeekMod.LOGGER.error("Failed to restore state for player {} - keeping saved state for retry",
@@ -168,7 +168,7 @@ public class PlayerStateManager extends BaseManager {
             }
 
             PeekMod.LOGGER.debug("No saved state found for player {} - no crash recovery needed", ProfileCompat.getName(player.getGameProfile()));
-            return PeekConstants.Result.success(Text.translatable("peek.message.no_crash_recovery_needed").getString());
+            return PeekConstants.Result.success(Component.translatable("peek.message.no_crash_recovery_needed").getString());
 
         } catch (Exception e) {
             PeekMod.LOGGER.error("Error during crash recovery for {}", ProfileCompat.getName(player.getGameProfile()), e);
@@ -185,14 +185,14 @@ public class PlayerStateManager extends BaseManager {
                 PeekMod.LOGGER.error("Failed to clear problematic saved state for {}", ProfileCompat.getName(player.getGameProfile()), clearException);
             }
             
-            return PeekConstants.Result.failure(Text.translatable("peek.message.crash_recovery_failed").getString());
+            return PeekConstants.Result.failure(Component.translatable("peek.message.crash_recovery_failed").getString());
         }
     }
 
     /**
      * Creates a backup of current state before making changes
      */
-    public void createStateBackup(ServerPlayerEntity player) {
+    public void createStateBackup(ServerPlayer player) {
         savePlayerState(player, false); // Save to temporary cache as backup
     }
     
@@ -216,10 +216,10 @@ public class PlayerStateManager extends BaseManager {
     }
 
     // Private helper methods
-    private void restoreState(ServerPlayerEntity player, PlayerState state) {
+    private void restoreState(ServerPlayer player, PlayerState state) {
         // Validate state before restoration
         if (!isStateValid(state)) {
-            throw new IllegalArgumentException(Text.translatable("peek.message.invalid_state").getString());
+            throw new IllegalArgumentException(Component.translatable("peek.message.invalid_state").getString());
         }
         
         // Restore using the PlayerState's restore method (this handles position restoration internally)
@@ -233,3 +233,4 @@ public class PlayerStateManager extends BaseManager {
         // If additional position safety checks are needed, they should be done before calling restore()
     }
 }
+

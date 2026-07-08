@@ -1,6 +1,6 @@
 package com.peek.data.peek;
 
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.phys.Vec3;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -23,9 +23,9 @@ public class PeekSession {
     
     // Current session state
     private boolean isActive;
-    private Vec3d lastKnownTargetPosition;
+    private Vec3 lastKnownTargetPosition;
     private UUID currentWorldId;
-    private Vec3d lastKnownPeekerPosition;  // Track peeker position for distance check
+    private Vec3 lastKnownPeekerPosition;  // Track peeker position for distance check
     
     public PeekSession(UUID peekerId, UUID targetId, String peekerName, String targetName, PlayerState originalState, UUID worldId) {
         this.id = UUID.randomUUID();
@@ -41,13 +41,13 @@ public class PeekSession {
         this.isActive = true;
     }
     
-    public void updateTargetPosition(Vec3d position, UUID worldId) {
+    public void updateTargetPosition(Vec3 position, UUID worldId) {
         this.lastKnownTargetPosition = position;
         this.currentWorldId = worldId;
         this.lastUpdateTime = Instant.now();
     }
     
-    public void updatePeekerPosition(Vec3d position) {
+    public void updatePeekerPosition(Vec3 position) {
         this.lastKnownPeekerPosition = position;
         this.lastUpdateTime = Instant.now();
     }
@@ -83,7 +83,8 @@ public class PeekSession {
     public PlayerState getOriginalPeekerState() { return originalPeekerState; }
     public UUID getOriginalWorldId() { return originalWorldId; }
     public boolean isActive() { return isActive; }
-    public Vec3d getLastKnownTargetPosition() { return lastKnownTargetPosition; }
+    public Vec3 getLastKnownTargetPosition() { return lastKnownTargetPosition; }
     public UUID getCurrentWorldId() { return currentWorldId; }
-    public Vec3d getLastKnownPeekerPosition() { return lastKnownPeekerPosition; }
+    public Vec3 getLastKnownPeekerPosition() { return lastKnownPeekerPosition; }
 }
+

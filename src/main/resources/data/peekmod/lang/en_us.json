@@ -10,9 +10,13 @@
   "peek.being_peeked": "§r§d%s is peeking you",
 
   "peek.error.internal": "§r§cInternal error occurred",
+  "peek.error.validation_failed": "§r§cValidation failed",
   "peek.error.request_expired": "§r§cRequest has expired",
   "peek.error.on_cooldown": "§r§eCooldown: %d seconds remaining",
   "peek.error.player_only": "§r§cPlayer-only command",
+  "peek.error.player_not_moving": "§r§cYou must stay still to start peeking",
+  "peek.error.not_peeking_anyone": "§r§cYou are not currently peeking anyone",
+  "peek.error.target_processing_request": "§r§eThe target is already processing a peek request",
 
   "peek.message.ended_normal": "§r§aPeek session ended",
   "peek.message.ended_distance": "§r§cPeek ended - distance exceeded",
@@ -30,6 +34,8 @@
   "peek.message.teleported_back": "§r§eTeleported back - distance limit",
   "peek.message.followed_dimension": "§r§bFollowed %s to new dimension",
   "peek.message.manage.cancel.tip": "§r§7Click to cancel this session",
+  "peek.message.auto_accept_completed": "§r§aPeek request auto-accepted",
+  "peek.message.player_not_peeking": "§r§c%s is not peeking you",
 
   "peek.blacklist.empty": "§r§7Blacklist is empty",
   "peek.blacklist.header": "§r§6Blacklisted Players:",

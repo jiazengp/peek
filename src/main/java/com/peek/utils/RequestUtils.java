@@ -12,7 +12,7 @@ import com.peek.utils.compat.ProfileCompat;
 import com.peek.utils.compat.ServerPlayerCompat;
 import com.peek.utils.permissions.Permissions;
 import eu.pb4.playerdata.api.PlayerDataApi;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.UUID;
 
@@ -49,12 +49,12 @@ public class RequestUtils {
      * @return null if validation passes, error message if validation fails
      */
     public static String validateRequestPreconditions(
-            ServerPlayerEntity requester, ServerPlayerEntity target, 
+            ServerPlayer requester, ServerPlayer target, 
             CooldownManager cooldownManager,
             java.util.Map<UUID, Integer> playerRequestCounts) {
         
-        UUID requesterId = requester.getUuid();
-        UUID targetId = target.getUuid();
+        UUID requesterId = requester.getUUID();
+        UUID targetId = target.getUUID();
         
         // 1. Universal validations (apply regardless of state)
         String universalError = validateUniversalRules(requester, target, cooldownManager, playerRequestCounts);
@@ -71,7 +71,7 @@ public class RequestUtils {
     /**
      * Universal rules that apply regardless of player state
      */
-    private static String validateUniversalRules(ServerPlayerEntity requester, ServerPlayerEntity target,
+    private static String validateUniversalRules(ServerPlayer requester, ServerPlayer target,
                                                CooldownManager cooldownManager,
                                                java.util.Map<UUID, Integer> playerRequestCounts) {
         // Basic validation
@@ -94,12 +94,12 @@ public class RequestUtils {
         
         // Cooldown check
         if (cooldownManager.isOnCooldown(requester)) {
-            long remaining = cooldownManager.getRemainingCooldown(requester.getUuid());
+            long remaining = cooldownManager.getRemainingCooldown(requester.getUUID());
             return ErrorCodes.COOLDOWN_ACTIVE.getTranslationKey() + ":" + remaining;
         }
         
         // Request limit check
-        int currentRequests = playerRequestCounts.getOrDefault(requester.getUuid(), 0);
+        int currentRequests = playerRequestCounts.getOrDefault(requester.getUUID(), 0);
         if (currentRequests >= ModConfigManager.getMaxConcurrentRequestsPerPlayer() &&
             !ValidationUtils.canBypass(requester, Permissions.Bypass.MAX_SESSIONS, 2)) {
             return ErrorCodes.REQUEST_LIMIT_EXCEEDED.getTranslationKey();
@@ -115,7 +115,7 @@ public class RequestUtils {
         }
 
         if (!ModConfigManager.isAllowCrossDimension() && !ValidationUtils.canBypass(requester, Permissions.Bypass.DIMENSION, 2)) {
-            if (!ServerPlayerCompat.getWorld(requester).getRegistryKey().equals(ServerPlayerCompat.getWorld(target).getRegistryKey())) {
+            if (!ServerPlayerCompat.getWorld(requester).dimension().equals(ServerPlayerCompat.getWorld(target).dimension())) {
                 return ErrorCodes.DIMENSION_NOT_ALLOWED.getTranslationKey();
             }
         }
@@ -145,7 +145,7 @@ public class RequestUtils {
     /**
      * Determines the current state of the target
      */
-    private static TargetState getTargetState(ServerPlayerEntity requester, ServerPlayerEntity target, UUID targetId) {
+    private static TargetState getTargetState(ServerPlayer requester, ServerPlayer target, UUID targetId) {
         // Check if being peeked
         if (ManagerRegistry.getInstance().getManager(PeekSessionManager.class).isPlayerBeingPeeked(targetId)) {
             return TargetState.BEING_PEEKED;
@@ -172,7 +172,7 @@ public class RequestUtils {
         }
         
         // Check if requester is blacklisted by target
-        if (targetData.blacklist().containsKey(requester.getUuid()) && !ValidationUtils.canBypass(requester, Permissions.Bypass.BLACKLIST, 2)) {
+        if (targetData.blacklist().containsKey(requester.getUUID()) && !ValidationUtils.canBypass(requester, Permissions.Bypass.BLACKLIST, 2)) {
             return TargetState.BLACKLISTED;
         }
         
@@ -222,8 +222,9 @@ public class RequestUtils {
     /**
      * Checks if a player is stationary (not moving significantly)
      */
-    private static boolean isPlayerStationary(ServerPlayerEntity player) {
+    private static boolean isPlayerStationary(ServerPlayer player) {
         // Allow small movements (e.g., looking around) - same logic as in PeekSessionManager
-        return player.getVelocity().lengthSquared() < 0.01; // Very small threshold for "stationary"
+        return player.getDeltaMovement().lengthSqr() < 0.01; // Very small threshold for "stationary"
     }
 }
+
