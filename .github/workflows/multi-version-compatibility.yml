@@ -2,9 +2,9 @@ name: Multi-Version Compatibility Test
 
 on:
   pull_request:
-    branches: [ main, minor ]
+    branches: [ 1.21.X, 26.X ]
   push:
-    branches: [ main, minor ]
+    branches: [ 1.21.X, 26.X ]
   workflow_dispatch:
 
 permissions:
