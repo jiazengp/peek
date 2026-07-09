@@ -1,50 +1,43 @@
-# ChangeLog
+# Changelog
 
-## [v1.0.3+1.21.11] - 2025-12-22
+## v2.0.0 (2026-07-08)
 
-### Added
-
-- **Minecraft 1.21.11 Support**: Full compatibility with Minecraft 1.21.9
-
----
-
-## [v1.0.3+1.21.9] - 2025-10-7
-
-### Added
-
-- **Minecraft 1.21.9 Support**: Full compatibility with Minecraft 1.21.9
-
----
-
-## [v1.0.2]
+### Breaking Changes
+- Drop support for Minecraft 1.21.x; now requires Minecraft 26.1+
+- Migrate from Yarn mappings to Mojang mappings
+- Require Java 25 (was Java 21)
+- Require Fabric Loader >= 0.18.0
+- Fabric API is now a required dependency
 
 ### Added
-
-- New `/peek manage` command system to replace `/peekadmin`
-- Comprehensive management commands for statistics, player info, and session control
-- Enhanced permission system with `peek.command.manage.*` structure
-- Improved internationalization with translation keys for all management commands
-- Enhanced `TextUtils` with better text handling for both String and Text objects
+- Support for Minecraft 26.1, 26.1.2, and 26.2
+- `fabric-api` as explicit dependency in fabric.mod.json
+- Per-version `fabric_loader_min_version` configuration
+- CI now uses dynamic Java version from version properties
+- Session end callback supports custom messages
 
 ### Changed
-
-- **BREAKING**: Migrated all admin commands from `/peekadmin` to `/peek manage`
-- **BREAKING**: Updated permission nodes from `peek.admin.*` to `peek.command.manage.*`
-- Refactored code organization with extracted constants in `GameConstants`
-- Improved command structure with modular subcommand architecture
-- Enhanced translation system to properly handle Minecraft Text objects
-
-### Deprecated
-
-- `/peekadmin` command (replaced by `/peek manage`)
-- `peek.admin.*` permission nodes (use `peek.command.manage.*` instead)
-
-### Removed
-
-- `PeekAdminCommand.java` (functionality moved to `PeekManageCommands.java`)
+- Update all API calls for Mojang mappings (ServerPlayerEntity→ServerPlayer, Text→Component, Vec3d→Vec3, etc.)
+- Update compat layer with MC_VER >= 1219 preprocessor branches
+- Refactor UserCacheCompat with simpler getNameByUuid API
+- Update all dependency versions for Minecraft 26.x
 
 ### Fixed
+- Fix java_version default value inconsistency between CI and Gradle
 
-- JSON syntax errors in language files
-- Hardcoded text strings in management commands now use proper translation keys
-- Text handling to use proper Minecraft Text objects instead of converting to strings
+---
+
+## v1.0.3 (2025-12-10)
+
+- Support Minecraft 1.21.11
+- Support Minecraft 1.21.9
+
+## v1.0.2 (2025-10-15)
+
+- Support Minecraft 1.21.6
+
+## v1.0.0 (2025-08-01)
+
+- Initial release
+- Peek functionality with spectator teleport
+- Multi-version support for Minecraft 1.21.1 - 1.21.6
