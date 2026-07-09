@@ -51,9 +51,9 @@ public record PlayerState(
     public static PlayerState capture(ServerPlayer player, HolderLookup.Provider registryLookup) {
         // Capture position and world
         Vec3 position = ServerPlayerCompat.getPos(player);
-        UUID worldId = ServerPlayerCompat.getWorld(player).dimension().identifier().hashCode() != 0 ?
-            UUID.nameUUIDFromBytes(ServerPlayerCompat.getWorld(player).dimension().identifier().toString().getBytes()) :
-            UUID.randomUUID();
+        UUID worldId = UUID.nameUUIDFromBytes(
+            ServerPlayerCompat.getWorld(player).dimension().identifier().toString().getBytes()
+        );
         
         // Capture game mode
         GameType gameMode = com.peek.utils.compat.PlayerCompat.getGameMode(player);

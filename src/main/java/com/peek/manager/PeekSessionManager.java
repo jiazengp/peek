@@ -415,17 +415,6 @@ public class PeekSessionManager extends BaseManager {
             // Remove player from particle effects tracking
             ParticleEffectManager.removePlayer(peekerId, session.getTargetId());
             
-            // Remove mappings
-            activeSessions.remove(sessionId);
-            peekerToSession.remove(peekerId);
-            Set<UUID> targetSessions = targetToSession.get(session.getTargetId());
-            if (targetSessions != null) {
-                targetSessions.remove(sessionId);
-                if (targetSessions.isEmpty()) {
-                    targetToSession.remove(session.getTargetId());
-                }
-            }
-            
             // Restore peeker's state
             // Use provided server or try to get current one
             if (server == null) {
@@ -494,6 +483,17 @@ public class PeekSessionManager extends BaseManager {
                 }
             } else {
                 PeekMod.LOGGER.error("No server instance available for state restoration");
+            }
+            
+            // Remove mappings after successful/attempted restoration
+            activeSessions.remove(sessionId);
+            peekerToSession.remove(peekerId);
+            Set<UUID> targetSessions = targetToSession.get(session.getTargetId());
+            if (targetSessions != null) {
+                targetSessions.remove(sessionId);
+                if (targetSessions.isEmpty()) {
+                    targetToSession.remove(session.getTargetId());
+                }
             }
             
             // Record statistics

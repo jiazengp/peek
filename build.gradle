@@ -230,6 +230,10 @@ jar {
 	}
 }
 
+test {
+	useJUnitPlatform()
+}
+
 
 // Task to list available Minecraft versions
 task listVersions {

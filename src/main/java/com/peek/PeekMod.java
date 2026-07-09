@@ -9,6 +9,7 @@ import com.peek.utils.*;
 import com.peek.manager.constants.PeekConstants;
 import com.peek.utils.ParticleEffectManager;
 import com.peek.utils.compat.ProfileCompat;
+import com.peek.utils.compat.ServerPlayerCompat;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -162,7 +163,7 @@ public class PeekMod implements ModInitializer {
 					ParticleEffectManager.cleanupPlayerParticles(player.getUUID());
 
 					// Stop any active sessions involving this player when they die
-					ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopAllSessionsInvolving(player.getUUID());
+					ManagerRegistry.getInstance().getManager(PeekSessionManager.class).stopAllSessionsInvolving(player.getUUID(), ServerPlayerCompat.getServer(player));
 					LOGGER.debug("Cleaned up sessions and particle effects for dead player {}", ProfileCompat.getName(player.getGameProfile()));
 				} catch (Exception e) {
 					LOGGER.error("Error cleaning up sessions for dead player {}", ProfileCompat.getName(player.getGameProfile()), e);
