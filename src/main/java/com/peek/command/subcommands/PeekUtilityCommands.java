@@ -191,7 +191,7 @@ public class PeekUtilityCommands {
             }
             
             // Separate targets into blacklisted and non-blacklisted
-            PlayerPeekData inviterData = getOrCreatePlayerData(player);
+            PlayerPeekData inviterData = PlayerPeekData.getOrCreate(player);
             List<ServerPlayer> blacklistedTargets = new ArrayList<>();
             List<ServerPlayer> nonBlacklistedTargets = new ArrayList<>();
             
@@ -210,7 +210,7 @@ public class PeekUtilityCommands {
                     if (target.equals(player)) {
                         return false; // Can't invite self
                     }
-                    PlayerPeekData targetData = getOrCreatePlayerData(target);
+                    PlayerPeekData targetData = PlayerPeekData.getOrCreate(target);
                     if (targetData.blacklist().containsKey(player.getUUID())) {
                         return false; // Inviter is blacklisted by target
                     }
@@ -376,12 +376,6 @@ public class PeekUtilityCommands {
             
             inviter.sendSystemMessage(message, false);
         }
-    }
-    
-    // Helper method
-    private static PlayerPeekData getOrCreatePlayerData(ServerPlayer player) {
-        PlayerPeekData data = PlayerDataApi.getCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE);
-        return data != null ? data : PlayerPeekData.createDefault();
     }
 }
 

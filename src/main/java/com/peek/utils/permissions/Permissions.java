@@ -80,20 +80,6 @@ public final class Permissions {
         private Command() {}
     }
     
-    // Admin permissions for administrative operations (deprecated - use Manage instead)
-    @Deprecated
-    public static final class Admin {
-        @Deprecated public static final String STATS = node(COMMAND, MANAGE, "stats");
-        @Deprecated public static final String TOP = node(COMMAND, MANAGE, "top");
-        @Deprecated public static final String LIST = node(COMMAND, MANAGE, "list");
-        @Deprecated public static final String PLAYER = node(COMMAND, MANAGE, "player");
-        @Deprecated public static final String SESSIONS = node(COMMAND, MANAGE, "sessions");
-        @Deprecated public static final String CLEANUP = node(COMMAND, MANAGE, "cleanup");
-        @Deprecated public static final String FORCE_STOP = node(COMMAND, MANAGE, "force_stop");
-        
-        private Admin() {}
-    }
-    
     public static final class Manage {
         public static final String STATS = node(COMMAND, MANAGE, "stats");
         public static final String TOP = node(COMMAND, MANAGE, "top");

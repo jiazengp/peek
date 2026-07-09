@@ -72,7 +72,7 @@ public class PeekSettingsCommands {
     
     private static int togglePrivateMode(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            PlayerPeekData data = getOrCreatePlayerData(player);
+            PlayerPeekData data = PlayerPeekData.getOrCreate(player);
             boolean currentState = data.privateMode();
             boolean newState = !currentState;
             
@@ -100,7 +100,7 @@ public class PeekSettingsCommands {
     
     private static int setPrivateMode(CommandContext<CommandSourceStack> context, boolean enabled) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            PlayerPeekData data = getOrCreatePlayerData(player);
+            PlayerPeekData data = PlayerPeekData.getOrCreate(player);
 
             data = data.withPrivateMode(enabled);
             PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, data);
@@ -189,7 +189,7 @@ public class PeekSettingsCommands {
     
     private static int toggleAutoAccept(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            PlayerPeekData data = getOrCreatePlayerData(player);
+            PlayerPeekData data = PlayerPeekData.getOrCreate(player);
             boolean currentState = data.autoAccept();
             boolean newState = !currentState;
             
@@ -217,7 +217,7 @@ public class PeekSettingsCommands {
     
     private static int setAutoAccept(CommandContext<CommandSourceStack> context, boolean enabled) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            PlayerPeekData data = getOrCreatePlayerData(player);
+            PlayerPeekData data = PlayerPeekData.getOrCreate(player);
             data = data.withAutoAccept(enabled);
             PlayerDataApi.setCustomDataFor(player, PeekDataStorage.PLAYER_PEEK_DATA_STORAGE, data);
             
@@ -236,12 +236,6 @@ public class PeekSettingsCommands {
             
             return 1;
         });
-    }
-    
-    
-    // Helper method
-    private static PlayerPeekData getOrCreatePlayerData(ServerPlayer player) {
-        return PlayerPeekData.getOrCreate(player);
     }
 }
 

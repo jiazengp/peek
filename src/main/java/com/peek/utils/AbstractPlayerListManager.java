@@ -81,7 +81,7 @@ public abstract class AbstractPlayerListManager {
             ServerPlayer target = CommandUtils.getPlayerArgument(context, "player");
             if (!ValidationUtils.validatePlayerNotNull(target, player)) return 0;
 
-            PlayerPeekData data = getOrCreatePlayerData(player);
+            PlayerPeekData data = PlayerPeekData.getOrCreate(player);
             if (!validateListOperation(data, target.getUUID(), target.getDisplayName(), player, true)) {
                 return 0;
             }
@@ -118,7 +118,7 @@ public abstract class AbstractPlayerListManager {
      */
     public int handleRemoveCommand(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            PlayerPeekData data = getOrCreatePlayerData(player);
+            PlayerPeekData data = PlayerPeekData.getOrCreate(player);
             
             // Check if list is empty
             if (getList(data).isEmpty()) {
@@ -146,7 +146,7 @@ public abstract class AbstractPlayerListManager {
      */
     public int handleListCommand(CommandContext<CommandSourceStack> context) {
         return CommandUtils.executePlayerCommand(context, (player) -> {
-            PlayerPeekData data = getOrCreatePlayerData(player);
+            PlayerPeekData data = PlayerPeekData.getOrCreate(player);
             Map<UUID, Long> list = getList(data);
             
             if (list.isEmpty()) {
@@ -218,13 +218,6 @@ public abstract class AbstractPlayerListManager {
         }
         
         return true;
-    }
-    
-    /**
-     * Helper method to get or create player data
-     */
-    protected PlayerPeekData getOrCreatePlayerData(ServerPlayer player) {
-        return PlayerPeekData.getOrCreate(player);
     }
     
     /**

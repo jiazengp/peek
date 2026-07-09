@@ -143,8 +143,13 @@ public class StateConsistencyChecker {
         int issues = 0;
         PeekRequestManager requestManager = ManagerRegistry.getInstance().getManager(PeekRequestManager.class);
         
-        // This is simplified - would need access to internal request data
-        // In a full implementation, would iterate through active requests and validate players exist
+        // Check each player involved in active requests is still online
+        for (UUID playerId : requestManager.getActiveRequestPlayerIds()) {
+            if (server.getPlayerList().getPlayer(playerId) == null) {
+                PeekMod.LOGGER.warn("Found orphaned request involving offline player: {}", playerId);
+                issues++;
+            }
+        }
         
         return issues;
     }

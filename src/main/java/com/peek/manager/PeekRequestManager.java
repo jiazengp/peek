@@ -22,6 +22,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -153,6 +154,17 @@ public class PeekRequestManager extends BaseManager {
             PeekMod.LOGGER.error("Error sending peek request", e);
             return PeekConstants.Result.failure(ErrorCodes.INTERNAL_ERROR);
         }
+    }
+    
+    /**
+     * Gets the set of all player UUIDs involved in active requests (requesters + targets).
+     * Package-private for use by StateConsistencyChecker.
+     */
+    public Set<UUID> getActiveRequestPlayerIds() {
+        Set<UUID> playerIds = new java.util.HashSet<>();
+        playerIds.addAll(requesterToRequestId.keySet());
+        playerIds.addAll(targetToRequestId.keySet());
+        return playerIds;
     }
     
     /**
