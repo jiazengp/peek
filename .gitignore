@@ -40,7 +40,6 @@ replay_*.log
 *.jfr
 
 .locale.env
-/CLAUDE.md
 .claude
 *.err.log
 *.out.log

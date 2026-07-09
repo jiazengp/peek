@@ -4,15 +4,15 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Build System & Multi-Version Support
 
-This project uses a sophisticated multi-version build system supporting Minecraft 1.21.1 through 1.21.6:
+This project uses a sophisticated multi-version build system supporting Minecraft 26.1+:
 
 ### Core Build Commands
 ```bash
-# Build for the default version (1.21.6)
+# Build for the default version (26.1)
 ./gradlew build
 
 # Build for a specific Minecraft version
-./gradlew build -PmcVer=1.21.4
+./gradlew build -PmcVer=26.2
 
 # Build for all supported versions
 ./buildAll.sh  # Linux/Mac
@@ -27,17 +27,17 @@ buildAll.bat   # Windows
 
 ### Version Configuration System
 - Version properties are stored in `version_properties/*.properties` files
-- Each version has specific dependency versions, yarn mappings, and preprocessor definitions
-- The build system generates `build.properties` with preprocessor flags like `MC_VER=1214` for conditional compilation
+- Each version has specific dependency versions and preprocessor definitions
+- The build system generates `build.properties` with preprocessor flags like `MC_VER=26010` for conditional compilation
 
 ### Preprocessor Usage
 The project uses Manifold preprocessor for version compatibility:
 ```java
-#if MC_VER >= 1215
-    // Code for 1.21.5+
-    return player.getWorld();
+#if MC_VER >= 26010
+    // Code for 26.1+
+    return player.level();
 #else
-    // Code for 1.21.4 and earlier
+    // Code for earlier versions
     return player.getServerWorld();
 #endif
 ```
@@ -106,7 +106,7 @@ Uses ConfigLib with YAML support:
 
 ### Version Compatibility
 When adding new features, consider MC version differences and use appropriate preprocessor directives. Common differences:
-- Teleport method signatures (1.21.1 vs 1.21.2+)
+- Teleport method signatures (26.1 vs 26.2+)
 - Player method return types (World vs ServerWorld)
 - Particle effect constructors (Vector3f vs int for colors)
 
@@ -124,7 +124,7 @@ Player data is automatically managed by PlayerDataAPI. For global data, use the 
 ### GitHub Actions
 The project uses matrix builds to test all supported Minecraft versions:
 - Automatically builds for each version in `version_properties/` on PR/push
-- Uses Java 21 with Microsoft distribution
+- Uses Java version specified in version_properties (currently Java 25) with Microsoft distribution
 - Stores build artifacts and reports for debugging failures
 
 ### Multi-Version Testing
