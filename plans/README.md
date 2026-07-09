@@ -8,19 +8,20 @@ honor its STOP conditions, and update your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001  | Establish characterization test baseline | P1 | L | — | TODO |
+| 001  | Establish characterization test baseline | P1 | L | — | PARTIAL |
 | 002  | Update AGENTS.md for Minecraft 26.x | P2 | S | — | DONE |
-| 003  | Fix PlayerState.worldId hashCode guard | P1 | S | 001 | TODO |
-| 004  | Add rollback to stopPeekSession on restore failure | P1 | S | 001 | TODO |
-| 005  | Pass server context in death handler session cleanup | P1 | S | 001 | TODO |
+| 003  | Fix PlayerState.worldId hashCode guard | P1 | S | 001 | DONE |
+| 004  | Add rollback to stopPeekSession on restore failure | P1 | S | 001 | DONE |
+| 005  | Pass server context in death handler session cleanup | P1 | S | 001 | DONE |
 
-Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
+Status values: TODO | IN PROGRESS | DONE | PARTIAL (infrastructure ready, remaining work documented) | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
 ## Dependency notes
 
 - **001 must execute first** — plans 003, 004, 005 depend on having characterization tests before modifying production code
 - 002 is independent (docs-only, no code changes)
 - 003, 004, 005 are independent of each other and can execute in any order after 001
+- 001 PARTIAL: JUnit 5 + useJUnitPlatform() configured and working; Minecraft-dependent classes (Vec3, etc.) cannot be instantiated in unit tests without full server bootstrap — full integration tests deferred to GameTest framework or manual runServer testing
 
 ## Findings considered and rejected
 
